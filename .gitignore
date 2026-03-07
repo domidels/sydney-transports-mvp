@@ -1,106 +1,155 @@
-app/api/__pycache__/
-# --- OS cruft ---
+#################################################
+# OS / SYSTEM
+#################################################
+
 .DS_Store
 Thumbs.db
-.venv/
-.env/
-.env
-# --- Editors/IDE ---
+*.swp
+*.swo
+*.tmp
+
+#################################################
+# IDE / EDITORS
+#################################################
+
 .vscode/
 .idea/
-*.code-workspace
+*.iml
 
-# --- Python build/cache ---
+#################################################
+# ENVIRONMENT VARIABLES
+#################################################
+
+.env
+.env.*
+**/.env
+**/.env.*
+
+!.env.example
+
+#################################################
+# PYTHON
+#################################################
+
 __pycache__/
-*.py[cod]
-*$py.class
-.build/
-build/
+*.pyc
+*.pyo
+*.pyd
+
+.Python
+pythonenv*
+pip-log.txt
+
+venv/
+.venv/
+ENV/
+
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+.coverage
+coverage.xml
+htmlcov/
+
+#################################################
+# PYTHON PACKAGING
+#################################################
+
 dist/
+build/
 *.egg-info/
 .eggs/
 
-# --- Virtual envs ---
-.venv/
-venv/
-env/
+#################################################
+# JUPYTER
+#################################################
 
-# --- Dependency/lock temp (on garde les locks utiles) ---
-pip-wheel-metadata/
-pip-log.txt
+.ipynb_checkpoints
 
-# --- Test/coverage ---
-.pytest_cache/
-.coverage
-.coverage.*
-htmlcov/
-.tox/
-.nox/
+#################################################
+# NODE / FRONTEND
+#################################################
 
-# --- Linters/type checkers ---
-.mypy_cache/
-.pytype/
-.pyre/
-.ruff_cache/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-lock.yaml
 
-# --- Notebooks ---
-.ipynb_checkpoints/
+.next/
+.nuxt/
+dist/
+build/
 
-# --- Env & secrets ---
-.env
-.env.*
-*.env
-*.secrets*
-secrets.*
-credentials.*
-*.key
-*.pem
+coverage/
 
-# --- Logs ---
+#################################################
+# TERRAFORM
+#################################################
+
+.terraform/
+.terraform.lock.hcl
+
+*.tfstate
+*.tfstate.*
+crash.log
+override.tf
+override.tf.json
+*_override.tf
+*_override.tf.json
+
+terraform.tfvars
+terraform.tfvars.json
+
+#################################################
+# AWS / CLOUD
+#################################################
+
+.aws/
+.aws-sam/
+
+#################################################
+# LAMBDA BUILD ARTIFACTS
+#################################################
+
+dist/
+*.zip
+
+#################################################
+# DATA / LARGE FILES
+#################################################
+
+data/
+tmp/
+cache/
+
+*.parquet
+*.feather
+*.orc
+
+#################################################
+# LOGS
+#################################################
+
 logs/
 *.log
-uvicorn*.log
-gunicorn*.log
 
-# --- RAG / FAISS / model artefacts (à ne pas commit) ---
-*.faiss
-*.index
-*.hnsw
-*.ann
-*.npy
-*.npz
+#################################################
+# GREAT EXPECTATIONS
+#################################################
 
-# Gros poids modèles/LLM (Ollama/HF/gguf, etc.)
-*.gguf
-*.bin
-*.pt
-*.pth
-*.safetensors
+great_expectations/uncommitted/
 
-# --- Data caches temporaires ---
-cache/
-.cache/
-__cache__/
-tmp/
-tmp-*/
-temp/
-data/
-datasets/
-checkpoints/
-outputs/
-artifacts/
-public/  # si tu génères des assets à la volée
+#################################################
+# METABASE / DASHBOARD
+#################################################
 
-# Garde la seed de plantes suivie si elle est dans le repo
-!app/data/
-app/data/*
-!app/data/seed_plants.csv
+metabase.db.mv.db
+metabase.db.trace.db
 
-# --- Docker/local tooling (si utilisés) ---
-*.pid
-*.pid.lock
+#################################################
+# DOCKER
+#################################################
 
-# --- OS X archives / misc ---
-*.swp
-*.swo
-*.pyc
+docker-data/
