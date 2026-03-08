@@ -17,11 +17,17 @@ def parse_vehicle_positions(raw_bytes: bytes):
         records.append(
             {
                 "entity_id": entity.id,
-                "vehicle_id": vehicle.vehicle.id if vehicle.HasField("vehicle") else None,
+                "vehicle_id": vehicle.vehicle.id
+                if vehicle.HasField("vehicle")
+                else None,
                 "trip_id": vehicle.trip.trip_id if vehicle.HasField("trip") else None,
                 "route_id": vehicle.trip.route_id if vehicle.HasField("trip") else None,
-                "lat": vehicle.position.latitude if vehicle.HasField("position") else None,
-                "lon": vehicle.position.longitude if vehicle.HasField("position") else None,
+                "lat": vehicle.position.latitude
+                if vehicle.HasField("position")
+                else None,
+                "lon": vehicle.position.longitude
+                if vehicle.HasField("position")
+                else None,
                 "timestamp": vehicle.timestamp,
             }
         )

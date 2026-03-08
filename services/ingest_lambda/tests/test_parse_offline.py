@@ -1,6 +1,7 @@
 from pathlib import Path
 import sys
 import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
 
@@ -35,7 +36,9 @@ def test_parse_fixture_records_have_expected_keys(parsed_records: list[dict]) ->
     assert expected_keys.issubset(first_record.keys())
 
 
-def test_parse_fixture_lat_lon_and_timestamp_types_are_valid(parsed_records: list[dict]) -> None:
+def test_parse_fixture_lat_lon_and_timestamp_types_are_valid(
+    parsed_records: list[dict],
+) -> None:
     first_record = parsed_records[0]
 
     assert first_record["lat"] is None or isinstance(first_record["lat"], float)
@@ -47,7 +50,9 @@ def test_parse_fixture_all_records_are_dicts(parsed_records: list[dict]) -> None
     assert all(isinstance(record, dict) for record in parsed_records)
 
 
-def test_parse_fixture_contains_at_least_one_record_with_coordinates(parsed_records: list[dict]) -> None:
+def test_parse_fixture_contains_at_least_one_record_with_coordinates(
+    parsed_records: list[dict],
+) -> None:
     assert any(
         record["lat"] is not None and record["lon"] is not None
         for record in parsed_records
