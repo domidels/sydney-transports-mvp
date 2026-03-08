@@ -1,19 +1,13 @@
 from pathlib import Path
-import sys
-
-ROOT = Path(__file__).resolve().parents[1]
-sys.path.append(str(ROOT))
-
-from dotenv import load_dotenv
-
-load_dotenv(ROOT / ".env")
 
 import requests
-
+from dotenv import load_dotenv
 from src.logging_config import get_logger
-from src.settings import TFNSW_API_KEY, TFNSW_VEHICLEPOS_URL, LOG_LEVEL
 from src.parse_gtfsrt import parse_vehicle_positions
+from src.settings import LOG_LEVEL, TFNSW_API_KEY, TFNSW_VEHICLEPOS_URL
 
+ROOT = Path(__file__).resolve().parents[1]
+load_dotenv(ROOT / ".env")
 logger = get_logger(__name__, LOG_LEVEL)
 
 

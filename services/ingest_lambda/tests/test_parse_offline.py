@@ -1,11 +1,11 @@
-from pathlib import Path
 import sys
+from pathlib import Path
+
 import pytest
+from src.parse_gtfsrt import parse_vehicle_positions
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.append(str(ROOT))
-
-from src.parse_gtfsrt import parse_vehicle_positions
 
 
 @pytest.fixture
