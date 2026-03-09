@@ -4,10 +4,11 @@ import requests
 from dotenv import load_dotenv
 from src.logging_config import get_logger
 from src.parse_gtfsrt import parse_vehicle_positions
-from src.settings import LOG_LEVEL, TFNSW_API_KEY, TFNSW_VEHICLEPOS_URL
 
 ROOT = Path(__file__).resolve().parents[1]
 load_dotenv(ROOT / ".env")
+from src.settings import LOG_LEVEL, TFNSW_API_KEY, TFNSW_VEHICLEPOS_URL
+
 logger = get_logger(__name__, LOG_LEVEL)
 
 
