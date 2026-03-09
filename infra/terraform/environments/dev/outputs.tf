@@ -9,3 +9,7 @@ output "lambda_function_name" {
 output "scheduler_name" {
   value = aws_scheduler_schedule.ingest_every_minute.name
 }
+
+output "bus_api_url" {
+  value = aws_apigatewayv2_api.bus_api.api_endpoint
+}

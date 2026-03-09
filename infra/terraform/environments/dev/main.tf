@@ -11,35 +11,13 @@ locals {
 
 resource "aws_s3_bucket" "raw" {
   bucket = "${local.prefix}-raw-${data.aws_caller_identity.current.account_id}"
+  force_destroy = true
 }
 
-resource "aws_s3_bucket_versioning" "raw" {
-  bucket = aws_s3_bucket.raw.id
-
-  versioning_configuration {
-    status = "Enabled"
-  }
-}
-
-resource "aws_s3_bucket_server_side_encryption_configuration" "raw" {
-  bucket = aws_s3_bucket.raw.id
-
-  rule {
-    apply_server_side_encryption_by_default {
-      sse_algorithm = "AES256"
-    }
-  }
-}
 
 resource "aws_cloudwatch_log_group" "lambda" {
   name              = "/aws/lambda/${local.prefix}-ingest"
   retention_in_days = 14
-}
-
-data "archive_file" "lambda_zip" {
-  type        = "zip"
-  source_dir  = "${path.module}/../../../../services/ingest_lambda/src"
-  output_path = "${path.module}/lambda_ingest.zip"
 }
 
 resource "aws_iam_role" "lambda_exec" {
@@ -78,9 +56,52 @@ resource "aws_iam_role_policy" "lambda_policy" {
           "s3:PutObject"
         ]
         Resource = "${aws_s3_bucket.raw.arn}/*"
+      },
+      {
+        Effect = "Allow"
+        Action = [
+          "s3:GetObject"
+        ]
+        Resource = "${aws_s3_bucket.raw.arn}/*"
       }
     ]
   })
+}
+resource "aws_apigatewayv2_api" "bus_api" {
+  name          = "${local.prefix}-bus-api"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_route" "buses_latest" {
+  api_id = aws_apigatewayv2_api.bus_api.id
+
+  route_key = "GET /buses/latest"
+  target    = "integrations/${aws_apigatewayv2_integration.read_lambda.id}"
+}
+
+resource "aws_apigatewayv2_stage" "default" {
+  api_id = aws_apigatewayv2_api.bus_api.id
+
+  name        = "$default"
+  auto_deploy = true
+}
+
+resource "aws_lambda_permission" "api_gateway" {
+  statement_id  = "AllowExecutionFromAPIGateway"
+  action        = "lambda:InvokeFunction"
+  function_name = aws_lambda_function.read_api.function_name
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${aws_apigatewayv2_api.bus_api.execution_arn}/*/*"
+}
+
+resource "aws_apigatewayv2_integration" "read_lambda" {
+  api_id = aws_apigatewayv2_api.bus_api.id
+
+  integration_type = "AWS_PROXY"
+  integration_uri  = aws_lambda_function.read_api.invoke_arn
+
+  integration_method = "POST"
 }
 
 resource "aws_lambda_function" "ingest" {
@@ -90,8 +111,8 @@ resource "aws_lambda_function" "ingest" {
   runtime       = "python3.11"
   timeout       = 30
 
-  filename         = data.archive_file.lambda_zip.output_path
-  source_code_hash = data.archive_file.lambda_zip.output_base64sha256
+  filename         = "${path.module}/../../../../dist/lambda_ingest.zip"
+  source_code_hash = filebase64sha256("${path.module}/../../../../dist/lambda_ingest.zip")
 
   environment {
     variables = {
@@ -103,6 +124,25 @@ resource "aws_lambda_function" "ingest" {
   }
 
   depends_on = [aws_cloudwatch_log_group.lambda]
+}
+
+resource "aws_lambda_function" "read_api" {
+  function_name = "${local.prefix}-read-api"
+
+  role    = aws_iam_role.lambda_exec.arn
+  handler = "handler.lambda_handler"
+  runtime = "python3.11"
+
+  filename         = "${path.module}/../../../../dist/read_lambda.zip"
+  source_code_hash = filebase64sha256("${path.module}/../../../../dist/read_lambda.zip")
+
+  timeout = 10
+
+  environment {
+    variables = {
+      RAW_BUCKET_NAME = aws_s3_bucket.raw.bucket
+    }
+  }
 }
 
 resource "aws_iam_role" "scheduler_role" {
