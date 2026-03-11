@@ -33,3 +33,15 @@ variable "schedule_expression" {
   description = "EventBridge Scheduler expression"
   default     = "rate(1 minute)"
 }
+
+variable "poll_interval_seconds" {
+  type        = number
+  description = "Polling interval inside Lambda"
+  default     = 5
+}
+
+variable "poll_window_seconds" {
+  type        = number
+  description = "Total polling window inside Lambda"
+  default     = 55
+}

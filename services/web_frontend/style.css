@@ -1,0 +1,79 @@
+body {
+  font-family: sans-serif;
+  margin: 0;
+}
+
+h2 {
+  margin: 12px;
+}
+
+#map {
+  height: 90vh;
+}
+
+.bus-leaflet-icon {
+  background: transparent !important;
+  border: none !important;
+}
+
+.bus-wrap {
+  width: var(--bus-width);
+  height: var(--bus-height);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transform-origin: center center;
+}
+
+.bus-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.bus-shadow {
+  fill: rgba(0, 0, 0, 0.14);
+}
+
+.bus-body {
+  fill: #2563eb;
+  stroke: #ffffff;
+  stroke-width: 5;
+}
+
+.bus-windshield {
+  fill: rgba(255, 255, 255, 0.96);
+}
+
+.bus-window {
+  fill: rgba(255, 255, 255, 0.88);
+}
+
+.bus-door {
+  fill: rgba(255, 255, 255, 0.3);
+  stroke: rgba(255, 255, 255, 0.75);
+  stroke-width: 2;
+}
+
+.bus-door-line {
+  stroke: rgba(255, 255, 255, 0.8);
+  stroke-width: 2;
+}
+
+.bus-detail {
+  fill: rgba(255, 255, 255, 0.9);
+}
+
+.bus-wheel {
+  fill: #1f2937;
+}
+
+/* animation légère de déplacement des marqueurs */
+.leaflet-marker-pane .leaflet-marker-icon {
+  transition: transform 0.5s linear;
+}
+
+.leaflet-tile-pane {
+  filter: brightness(1.2) saturate(0.5) grayscale(0.25);
+}

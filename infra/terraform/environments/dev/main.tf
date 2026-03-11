@@ -120,6 +120,8 @@ resource "aws_lambda_function" "ingest" {
       TFNSW_VEHICLEPOS_URL = var.tfnsw_vehiclepos_url
       RAW_BUCKET_NAME      = aws_s3_bucket.raw.bucket
       LOG_LEVEL            = "INFO"
+      POLL_INTERVAL_SECONDS = tostring(var.poll_interval_seconds)
+      POLL_WINDOW_SECONDS   = tostring(var.poll_window_seconds)
     }
   }
 
