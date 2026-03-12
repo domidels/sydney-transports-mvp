@@ -28,7 +28,7 @@ POLL_WINDOW_SECONDS = int(os.getenv("POLL_WINDOW_SECONDS", "55"))
 
 logger = get_logger(__name__, LOG_LEVEL)
 
-TARGET_ROUTES = {"390X", "379"}
+TARGET_ROUTES = {"390X", "379", "370", "313", "373", "350", "333"}
 LATEST_KEY = "latest/buses_latest.json"
 
 

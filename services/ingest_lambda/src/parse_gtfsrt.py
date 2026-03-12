@@ -22,6 +22,9 @@ def parse_vehicle_positions(raw_bytes: bytes):
                 else None,
                 "trip_id": vehicle.trip.trip_id if vehicle.HasField("trip") else None,
                 "route_id": vehicle.trip.route_id if vehicle.HasField("trip") else None,
+                "direction_id": vehicle.trip.direction_id
+                if vehicle.HasField("trip")
+                else None,
                 "lat": vehicle.position.latitude
                 if vehicle.HasField("position")
                 else None,

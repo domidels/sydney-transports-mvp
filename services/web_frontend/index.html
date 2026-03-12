@@ -12,14 +12,22 @@
     />
     <link rel="stylesheet" href="./style.css" />
   </head>
-  <body>
-    <h2>Sydney Buses Live</h2>
-    <div id="map"></div>
+<body>
+  <div class="topbar">
+    <h2>Waverley Buses Live</h2>
 
-    <script
-      src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
-      crossorigin=""
-    ></script>
-    <script src="./app.js"></script>
-  </body>
-</html>
+    <label for="route-select"> Bus Routes :</label>
+    <select id="route-select">
+      <option value="all">Waverley routes</option>
+    </select>
+  </div>
+
+  <div id="map"></div>
+
+  <script
+    src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+    crossorigin=""
+  ></script>
+  <script src="./app.js"></script>
+</body>
+</html

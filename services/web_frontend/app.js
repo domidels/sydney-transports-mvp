@@ -3,21 +3,27 @@ document.addEventListener("DOMContentLoaded", () => {
     "https://px97vg8cc5.execute-api.ap-southeast-2.amazonaws.com/buses/latest";
 
   const REFRESH_MS = 5000;
+  const MOVE_DURATION = 4500;
+  const ROTATE_DURATION = 300;
 
-  const map = L.map("map", {
-    zoomControl: false,
-  }).setView([-33.92, 151.24], 12);
+  const map = L.map("map", { zoomControl: false }).setView([-33.92, 151.24], 12);
 
-  L.control.zoom({
-    position: "topright",
-  }).addTo(map);
+  L.control.zoom({ position: "topright" }).addTo(map);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
     attribution: "OpenStreetMap",
   }).addTo(map);
 
+  const routeSelect = document.getElementById("route-select");
   const buses = {};
+  let selectedRoute = "all";
+  let availableRoutes = new Set();
   let lastZoomBucket = getZoomBucket();
+
+  routeSelect.addEventListener("change", (e) => {
+    selectedRoute = e.target.value;
+    applyRouteFilter();
+  });
 
   function getZoomBucket() {
     const z = map.getZoom();
@@ -31,243 +37,347 @@ document.addEventListener("DOMContentLoaded", () => {
   function getBusDimensions() {
     switch (getZoomBucket()) {
       case 4:
-        return { width: 18, height: 28 };
+        return { width: 24, height: 34 };
       case 3:
-        return { width: 16, height: 24 };
+        return { width: 20, height: 30 };
       case 2:
-        return { width: 14, height: 21 };
+        return { width: 18, height: 26 };
       case 1:
-        return { width: 12, height: 18 };
+        return { width: 16, height: 22 };
       default:
-        return { width: 10, height: 16 };
+        return { width: 14, height: 20 };
     }
   }
 
-  function buildBusSvg(angleDeg, width, height) {
+  function buildBusSvg(width, height, angle = 0, directionId = 0) {
+    const color = directionId === 1 ? "#16a34a" : "#2563eb";
+
     return `
       <div
         class="bus-wrap"
         style="
           --bus-width:${width}px;
           --bus-height:${height}px;
-          transform: rotate(${angleDeg}deg);
+          --bus-color:${color};
+          transform: rotate(${angle}deg);
+          transform-origin: center center;
         "
       >
-        <svg
-          class="bus-svg"
-          viewBox="0 0 100 150"
-          xmlns="http://www.w3.org/2000/svg"
-          aria-hidden="true"
-        >
+        <svg viewBox="0 -18 100 168" class="bus-svg">
+          <polygon
+            points="50,-20 32,10 68,10"
+            fill="${color}"
+            stroke="white"
+            stroke-width="3"
+            stroke-linejoin="round"
+          />
+
           <rect
+            x="14"
+            y="10"
+            rx="16"
+            ry="16"
+            width="72"
+            height="130"
             class="bus-shadow"
+            transform="translate(2,2)"
+          />
+
+          <rect
             x="14"
             y="10"
             rx="16"
             ry="16"
             width="72"
             height="130"
-            transform="translate(2, 2)"
-          />
-
-          <rect
             class="bus-body"
-            x="14"
-            y="10"
-            rx="16"
-            ry="16"
-            width="72"
-            height="130"
           />
 
-          <rect
-            class="bus-windshield"
-            x="24"
-            y="18"
-            rx="8"
-            ry="8"
-            width="52"
-            height="28"
-          />
+          <rect x="24" y="26" width="16" height="18" rx="4" class="bus-window" />
+          <rect x="42" y="26" width="16" height="18" rx="4" class="bus-window" />
+          <rect x="60" y="26" width="16" height="18" rx="4" class="bus-window" />
 
-          <rect
-            class="bus-detail"
-            x="24"
-            y="50"
-            width="52"
-            height="4"
-            rx="2"
-          />
+          <rect x="24" y="106" width="16" height="18" rx="4" class="bus-window" />
+          <rect x="42" y="106" width="16" height="18" rx="4" class="bus-window" />
+          <rect x="60" y="106" width="16" height="18" rx="4" class="bus-window" />
 
-          <rect
-            class="bus-window"
-            x="24"
-            y="62"
-            width="16"
-            height="20"
-            rx="4"
-          />
-          <rect
-            class="bus-window"
-            x="42"
-            y="62"
-            width="16"
-            height="20"
-            rx="4"
-          />
-          <rect
-            class="bus-window"
-            x="60"
-            y="62"
-            width="16"
-            height="20"
-            rx="4"
-          />
+          <rect x="24" y="58" width="52" height="34" rx="8" class="bus-detail" />
 
-          <rect
-            class="bus-door"
-            x="30"
-            y="92"
-            width="40"
-            height="28"
-            rx="5"
-          />
-          <line
-            class="bus-door-line"
-            x1="50"
-            y1="92"
-            x2="50"
-            y2="120"
-          />
-
-          <rect
-            class="bus-detail"
-            x="35"
-            y="128"
-            width="30"
-            height="5"
-            rx="2.5"
-          />
-
-          <circle class="bus-wheel" cx="22" cy="36" r="6" />
-          <circle class="bus-wheel" cx="78" cy="36" r="6" />
-          <circle class="bus-wheel" cx="22" cy="114" r="6" />
-          <circle class="bus-wheel" cx="78" cy="114" r="6" />
+          <circle cx="22" cy="36" r="6" class="bus-wheel" />
+          <circle cx="78" cy="36" r="6" class="bus-wheel" />
+          <circle cx="22" cy="114" r="6" class="bus-wheel" />
+          <circle cx="78" cy="114" r="6" class="bus-wheel" />
         </svg>
       </div>
     `;
   }
 
-  function createBusIcon(angleDeg = 0) {
+  function createBusIcon(angle = 0, directionId = 0) {
     const { width, height } = getBusDimensions();
 
     return L.divIcon({
       className: "bus-leaflet-icon",
-      html: buildBusSvg(angleDeg, width, height),
+      html: buildBusSvg(width, height, angle, directionId),
       iconSize: [width, height],
       iconAnchor: [width / 2, height / 2],
       popupAnchor: [0, -height / 2],
     });
   }
 
-  function refreshBusIconsIfNeeded() {
-    const zoomBucket = getZoomBucket();
-    if (zoomBucket === lastZoomBucket) return;
+  function toRad(d) {
+    return (d * Math.PI) / 180;
+  }
 
-    lastZoomBucket = zoomBucket;
+  function toDeg(r) {
+    return (r * 180) / Math.PI;
+  }
 
+  function normalizeAngle(a) {
+    let out = a % 360;
+    if (out < 0) out += 360;
+    return out;
+  }
+
+  function shortestDelta(a, b) {
+    let d = normalizeAngle(b) - normalizeAngle(a);
+    if (d > 180) d -= 360;
+    if (d < -180) d += 360;
+    return d;
+  }
+
+  function computeBearing(lat1, lon1, lat2, lon2, prev = 0) {
+    const approxMove = Math.abs(lat2 - lat1) + Math.abs(lon2 - lon1);
+    if (approxMove < 0.00005) return prev;
+
+    const phi1 = toRad(lat1);
+    const phi2 = toRad(lat2);
+    const dLambda = toRad(lon2 - lon1);
+
+    const y = Math.sin(dLambda) * Math.cos(phi2);
+    const x =
+      Math.cos(phi1) * Math.sin(phi2) -
+      Math.sin(phi1) * Math.cos(phi2) * Math.cos(dLambda);
+
+    return normalizeAngle(toDeg(Math.atan2(y, x)));
+  }
+
+  function smoothAngle(prev, next, alpha = 0.4) {
+    const d = shortestDelta(prev, next);
+    return normalizeAngle(prev + d * alpha);
+  }
+
+  function animateRotation(bus, newAngle) {
+    const startAngle = bus.angle ?? newAngle;
+    const delta = shortestDelta(startAngle, newAngle);
+    const start = performance.now();
+
+    function step(now) {
+      const t = Math.min((now - start) / ROTATE_DURATION, 1);
+      const current = normalizeAngle(startAngle + delta * t);
+
+      bus.marker.setIcon(createBusIcon(current, bus.directionId));
+      updateBusPopup(bus);
+
+      if (t < 1) {
+        requestAnimationFrame(step);
+      } else {
+        bus.angle = newAngle;
+      }
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  function animateMove(marker, from, to) {
+    const start = performance.now();
+
+    function step(now) {
+      const t = Math.min((now - start) / MOVE_DURATION, 1);
+
+      const lat = from.lat + (to.lat - from.lat) * t;
+      const lon = from.lng + (to.lng - from.lng) * t;
+
+      marker.setLatLng([lat, lon]);
+
+      if (t < 1) requestAnimationFrame(step);
+    }
+
+    requestAnimationFrame(step);
+  }
+
+  function busMatchesFilter(bus) {
+    if (selectedRoute === "all") return true;
+    return String(bus.routeId) === String(selectedRoute);
+  }
+
+  function applyRouteFilter() {
     for (const bus of Object.values(buses)) {
-      bus.marker.setIcon(createBusIcon(bus.angle ?? 0));
+      const visible = busMatchesFilter(bus);
+
+      if (visible && !map.hasLayer(bus.marker)) {
+        bus.marker.addTo(map);
+      }
+
+      if (!visible && map.hasLayer(bus.marker)) {
+        map.removeLayer(bus.marker);
+      }
     }
   }
 
-  function computeBearing(fromLat, fromLon, toLat, toLon, previousAngle = 0) {
-    const dLat = toLat - fromLat;
-    const dLon = toLon - fromLon;
+  function updateRouteDropdown() {
+    const currentValue = routeSelect.value;
 
-    if (Math.abs(dLat) + Math.abs(dLon) < 1e-7) {
-      return previousAngle;
+    const routes = Array.from(availableRoutes).sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { numeric: true })
+    );
+
+    routeSelect.innerHTML = `<option value="all">Waverley routes</option>`;
+
+    for (const route of routes) {
+      const option = document.createElement("option");
+      option.value = route;
+      option.textContent = route;
+      routeSelect.appendChild(option);
     }
 
-    // 0° = vers le haut du SVG
-    return (Math.atan2(dLon, -dLat) * 180) / Math.PI;
+    if (routes.includes(currentValue)) {
+      routeSelect.value = currentValue;
+    } else {
+      routeSelect.value = "all";
+      selectedRoute = "all";
+    }
+  }
+
+  function updateBusPopup(bus) {
+    bus.marker.bindPopup(`
+      <strong>Route:</strong> ${bus.routeId}<br>
+      <strong>Vehicle:</strong> ${bus.vehicleId}<br>
+      <strong>Trip:</strong> ${bus.tripId ?? "?"}<br>
+      <strong>Direction:</strong> ${bus.directionId}<br>
+      <strong>Timestamp:</strong> ${bus.timestamp ?? "?"}
+    `);
   }
 
   async function updateBuses() {
     try {
       const res = await fetch(API_URL, { cache: "no-store" });
-      if (!res.ok) {
-        throw new Error(`HTTP ${res.status}`);
-      }
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
       const seen = new Set();
+      const routes = new Set();
 
       for (const v of data.vehicles || []) {
-        if (v.lat == null || v.lon == null || !v.vehicle_id) {
-          continue;
-        }
+        if (!v.vehicle_id || v.lat == null || v.lon == null) continue;
 
         const id = v.vehicle_id;
-        seen.add(id);
+        const route = String(v.route_id ?? "?").split("_")[1] ?? "?";
+        const directionId = Number(v.direction_id ?? 0);
+        const pos = L.latLng(v.lat, v.lon);
 
-        const newLatLng = L.latLng(v.lat, v.lon);
+        seen.add(id);
+        routes.add(route);
 
         if (!buses[id]) {
-          const marker = L.marker(newLatLng, {
-            icon: createBusIcon(0),
-          }).addTo(map);
+          const marker = L.marker(pos, {
+            icon: createBusIcon(0, directionId),
+          });
 
           marker.bindPopup("");
 
           buses[id] = {
             marker,
-            lastLatLng: newLatLng,
+            last: pos,
             angle: 0,
+            hasDirection: false,
+            routeId: route,
+            directionId,
+            vehicleId: v.vehicle_id,
+            tripId: v.trip_id,
+            timestamp: v.timestamp,
           };
+
+          updateBusPopup(buses[id]);
+
+          if (selectedRoute === "all" || selectedRoute === route) {
+            marker.addTo(map);
+          }
         } else {
           const bus = buses[id];
-          const oldLatLng = bus.lastLatLng;
+          const old = bus.last;
 
-          const moved =
-            oldLatLng.lat !== newLatLng.lat || oldLatLng.lng !== newLatLng.lng;
+          bus.routeId = route;
+          bus.directionId = directionId;
+          bus.vehicleId = v.vehicle_id;
+          bus.tripId = v.trip_id;
+          bus.timestamp = v.timestamp;
+
+          const moved = old.lat !== pos.lat || old.lng !== pos.lng;
 
           if (moved) {
-            const angle = computeBearing(
-              oldLatLng.lat,
-              oldLatLng.lng,
-              newLatLng.lat,
-              newLatLng.lng,
+            const raw = computeBearing(
+              old.lat,
+              old.lng,
+              pos.lat,
+              pos.lng,
               bus.angle
             );
 
-            bus.angle = angle;
-            bus.lastLatLng = newLatLng;
-            bus.marker.setLatLng(newLatLng);
-            bus.marker.setIcon(createBusIcon(angle));
+            if (!bus.hasDirection) {
+              bus.angle = raw;
+              bus.hasDirection = true;
+              bus.marker.setIcon(createBusIcon(raw, bus.directionId));
+              bus.marker.setLatLng(pos);
+              bus.last = pos;
+              updateBusPopup(bus);
+            } else {
+              const stable = smoothAngle(bus.angle ?? raw, raw);
+
+              animateRotation(bus, stable);
+
+              setTimeout(() => {
+                animateMove(bus.marker, old, pos);
+              }, ROTATE_DURATION);
+
+              bus.last = pos;
+              updateBusPopup(bus);
+            }
+          } else {
+            bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId));
+            updateBusPopup(bus);
           }
         }
-
-        buses[id].marker.setPopupContent(`
-          <strong>Route:</strong> ${v.route_id ?? "?"}<br>
-          <strong>Vehicle:</strong> ${v.vehicle_id}<br>
-          <strong>Trip:</strong> ${v.trip_id ?? "?"}<br>
-          <strong>Timestamp:</strong> ${v.timestamp ?? "?"}
-        `);
       }
+
+      availableRoutes = routes;
+      updateRouteDropdown();
 
       for (const [id, bus] of Object.entries(buses)) {
         if (!seen.has(id)) {
-          map.removeLayer(bus.marker);
+          if (map.hasLayer(bus.marker)) {
+            map.removeLayer(bus.marker);
+          }
           delete buses[id];
         }
       }
-    } catch (err) {
-      console.error("Failed to update buses:", err);
+
+      applyRouteFilter();
+    } catch (e) {
+      console.error("Failed to update buses:", e);
     }
   }
 
-  map.on("zoomend", refreshBusIconsIfNeeded);
+  map.on("zoomend", () => {
+    const bucket = getZoomBucket();
+    if (bucket === lastZoomBucket) return;
+
+    lastZoomBucket = bucket;
+
+    for (const bus of Object.values(buses)) {
+      bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId));
+      updateBusPopup(bus);
+    }
+  });
 
   updateBuses();
   setInterval(updateBuses, REFRESH_MS);

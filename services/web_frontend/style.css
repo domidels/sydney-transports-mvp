@@ -3,18 +3,43 @@ body {
   margin: 0;
 }
 
+.topbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  flex-wrap: wrap;
+}
+
 h2 {
-  margin: 12px;
+  margin: 10px;
+  font-size: 20px;
+}
+
+label {
+  font-weight: 600;
+}
+
+select {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: white;
+  font-size: 14px;
 }
 
 #map {
-  height: 90vh;
+  height: calc(100vh - 56px);
 }
+
+/* Leaflet icon container */
 
 .bus-leaflet-icon {
   background: transparent !important;
   border: none !important;
 }
+
+/* wrapper allowing rotation */
 
 .bus-wrap {
   width: var(--bus-width);
@@ -25,6 +50,8 @@ h2 {
   transform-origin: center center;
 }
 
+/* SVG bus */
+
 .bus-svg {
   display: block;
   width: 100%;
@@ -32,47 +59,49 @@ h2 {
   overflow: visible;
 }
 
+/* bus body */
+
 .bus-shadow {
   fill: rgba(0, 0, 0, 0.14);
 }
 
 .bus-body {
-  fill: #2563eb;
+  fill: var(--bus-color, #2563eb);
   stroke: #ffffff;
   stroke-width: 5;
 }
 
-.bus-windshield {
-  fill: rgba(255, 255, 255, 0.96);
-}
+/* windows */
 
 .bus-window {
   fill: rgba(255, 255, 255, 0.88);
 }
 
-.bus-door {
-  fill: rgba(255, 255, 255, 0.3);
-  stroke: rgba(255, 255, 255, 0.75);
-  stroke-width: 2;
-}
-
-.bus-door-line {
-  stroke: rgba(255, 255, 255, 0.8);
-  stroke-width: 2;
-}
+/* mid detail */
 
 .bus-detail {
   fill: rgba(255, 255, 255, 0.9);
 }
 
+/* wheels */
+
 .bus-wheel {
   fill: #1f2937;
 }
 
-/* animation légère de déplacement des marqueurs */
+/* smooth rotation */
+
 .leaflet-marker-pane .leaflet-marker-icon {
-  transition: transform 0.5s linear;
+  transition: transform 0.35s linear;
 }
+
+/* disable transition during zoom animation */
+
+.leaflet-zoom-anim .leaflet-marker-pane .leaflet-marker-icon {
+  transition: none;
+}
+
+/* nicer map style */
 
 .leaflet-tile-pane {
   filter: brightness(1.2) saturate(0.5) grayscale(0.25);
