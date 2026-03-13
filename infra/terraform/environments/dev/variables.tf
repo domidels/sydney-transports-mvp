@@ -45,3 +45,19 @@ variable "poll_window_seconds" {
   description = "Total polling window inside Lambda"
   default     = 55
 }
+
+variable "frontend_domain" {
+  type    = string
+  default = "waverley-bus.live"
+}
+
+variable "frontend_www_domain" {
+  type    = string
+  default = "www.waverley-bus.live"
+}
+
+provider "aws" {
+  alias   = "us_east_1"
+  region  = "us-east-1"
+  profile = "sydney-transport"
+}

@@ -200,3 +200,127 @@ resource "aws_scheduler_schedule" "ingest_every_minute" {
     }
   }
 }
+
+resource "aws_acm_certificate" "frontend_cert" {
+  provider                  = aws.us_east_1
+  domain_name               = var.frontend_domain
+  subject_alternative_names = [var.frontend_www_domain]
+  validation_method         = "DNS"
+
+  lifecycle {
+    create_before_destroy = true
+  }
+}
+
+resource "aws_acm_certificate_validation" "frontend_cert" {
+  provider        = aws.us_east_1
+  certificate_arn = aws_acm_certificate.frontend_cert.arn
+}
+
+resource "aws_cloudfront_origin_access_control" "frontend" {
+  name                              = "${local.prefix}-frontend-oac"
+  description                       = "OAC for frontend in shared S3 bucket"
+  origin_access_control_origin_type = "s3"
+  signing_behavior                  = "always"
+  signing_protocol                  = "sigv4"
+}
+
+resource "aws_cloudfront_distribution" "frontend" {
+  enabled             = true
+  default_root_object = "index.html"
+  aliases             = [var.frontend_domain, var.frontend_www_domain]
+
+  origin {
+    domain_name              = aws_s3_bucket.raw.bucket_regional_domain_name
+    origin_id                = "raw-bucket-frontend"
+    origin_path              = "/web_frontend"
+    origin_access_control_id = aws_cloudfront_origin_access_control.frontend.id
+  }
+
+  default_cache_behavior {
+    target_origin_id       = "raw-bucket-frontend"
+    viewer_protocol_policy = "redirect-to-https"
+    compress               = true
+
+    allowed_methods = ["GET", "HEAD", "OPTIONS"]
+    cached_methods  = ["GET", "HEAD"]
+
+    forwarded_values {
+      query_string = true
+      cookies {
+        forward = "none"
+      }
+    }
+  }
+
+  custom_error_response {
+    error_code            = 403
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
+  custom_error_response {
+    error_code            = 404
+    response_code         = 200
+    response_page_path    = "/index.html"
+    error_caching_min_ttl = 0
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    acm_certificate_arn      = aws_acm_certificate_validation.frontend_cert.certificate_arn
+    ssl_support_method       = "sni-only"
+    minimum_protocol_version = "TLSv1.2_2021"
+  }
+
+  price_class = "PriceClass_100"
+
+  depends_on = [aws_acm_certificate_validation.frontend_cert]
+}
+
+data "aws_iam_policy_document" "raw_bucket_policy" {
+  statement {
+    sid    = "AllowCloudFrontReadFrontend"
+    effect = "Allow"
+
+    principals {
+      type        = "Service"
+      identifiers = ["cloudfront.amazonaws.com"]
+    }
+
+    actions = ["s3:GetObject"]
+
+    resources = [
+      "${aws_s3_bucket.raw.arn}/web_frontend/*"
+    ]
+
+    condition {
+      test     = "StringEquals"
+      variable = "AWS:SourceArn"
+      values   = [aws_cloudfront_distribution.frontend.arn]
+    }
+  }
+}
+
+resource "aws_s3_bucket_policy" "raw_bucket_policy" {
+  bucket = aws_s3_bucket.raw.id
+  policy = data.aws_iam_policy_document.raw_bucket_policy.json
+}
+
+output "cloudfront_domain_name" {
+  value = aws_cloudfront_distribution.frontend.domain_name
+}
+
+output "cloudfront_distribution_id" {
+  value = aws_cloudfront_distribution.frontend.id
+}
+
+output "frontend_cert_validation_records" {
+  value = aws_acm_certificate.frontend_cert.domain_validation_options
+}
