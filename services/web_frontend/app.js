@@ -6,9 +6,41 @@ document.addEventListener("DOMContentLoaded", () => {
   const MOVE_DURATION = 4500;
   const ROTATE_DURATION = 300;
 
+  const ROUTE_COLORS = [
+    "#2563eb",
+    "#dc2626",
+    "#16a34a",
+    "#9333ea",
+    "#f59e0b",
+    "#0891b2",
+    "#be185d",
+    "#4d7c0f",
+    "#ea580c",
+    "#0f766e",
+    "#7c3aed",
+    "#b91c1c",
+  ];
+
+  let routeColorMap = {};
+
+  function rebuildRouteColorMap(routesSet) {
+    const routes = Array.from(routesSet).sort((a, b) =>
+      String(a).localeCompare(String(b), undefined, { numeric: true })
+    );
+
+    routeColorMap = {};
+    routes.forEach((route, index) => {
+      routeColorMap[route] = ROUTE_COLORS[index % ROUTE_COLORS.length];
+    });
+  }
+
+  function getRouteColor(routeId = "") {
+    return routeColorMap[routeId] || "#2563eb";
+  }
+
   const EASTERN_SUBURBS_BOUNDS = L.latLngBounds(
-    [-33.985, 151.170], // south-west
-    [-33.840, 151.310]  // north-east
+    [-33.985, 151.170],
+    [-33.840, 151.310]
   );
 
   const map = L.map("map", {
@@ -25,6 +57,33 @@ document.addEventListener("DOMContentLoaded", () => {
     attribution: "OpenStreetMap",
   }).addTo(map);
 
+  const legend = L.control({ position: "bottomleft" });
+
+  legend.onAdd = function () {
+    this._div = L.DomUtil.create("div", "bus-legend");
+    return this._div;
+  };
+
+  legend.update = function (routes) {
+    if (!this._div) return;
+
+    let html = "<strong>Routes</strong>";
+
+    for (const route of routes) {
+      const color = getRouteColor(route);
+      html += `
+        <div class="legend-row">
+          <span class="legend-color" style="background:${color}"></span>
+          <span>${route}</span>
+        </div>
+      `;
+    }
+
+    this._div.innerHTML = html;
+  };
+
+  legend.addTo(map);
+
   const routeSelect = document.getElementById("route-select");
   const buses = {};
   let selectedRoute = "all";
@@ -34,7 +93,14 @@ document.addEventListener("DOMContentLoaded", () => {
   routeSelect.addEventListener("change", (e) => {
     selectedRoute = e.target.value;
     applyRouteFilter();
+    updateLegendVisibility();
   });
+
+  function updateLegendVisibility() {
+    const legendEl = document.querySelector(".bus-legend");
+    if (!legendEl) return;
+    legendEl.style.display = selectedRoute === "all" ? "block" : "none";
+  }
 
   function getZoomBucket() {
     const z = map.getZoom();
@@ -60,8 +126,8 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  function buildBusSvg(width, height, angle = 0, directionId = 0) {
-    const color = directionId === 1 ? "#16a34a" : "#2563eb";
+  function buildBusSvg(width, height, angle = 0, directionId = 0, routeId = "") {
+    const color = getRouteColor(routeId);
 
     return `
       <div
@@ -123,12 +189,12 @@ document.addEventListener("DOMContentLoaded", () => {
     `;
   }
 
-  function createBusIcon(angle = 0, directionId = 0) {
+  function createBusIcon(angle = 0, directionId = 0, routeId = "") {
     const { width, height } = getBusDimensions();
 
     return L.divIcon({
       className: "bus-leaflet-icon",
-      html: buildBusSvg(width, height, angle, directionId),
+      html: buildBusSvg(width, height, angle, directionId, routeId),
       iconSize: [width, height],
       iconAnchor: [width / 2, height / 2],
       popupAnchor: [0, -height / 2],
@@ -186,7 +252,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const t = Math.min((now - start) / ROTATE_DURATION, 1);
       const current = normalizeAngle(startAngle + delta * t);
 
-      bus.marker.setIcon(createBusIcon(current, bus.directionId));
+      bus.marker.setIcon(createBusIcon(current, bus.directionId, bus.routeId));
       updateBusPopup(bus);
 
       if (t < 1) {
@@ -242,7 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
       String(a).localeCompare(String(b), undefined, { numeric: true })
     );
 
-    routeSelect.innerHTML = `<option value="all">Waverley routes</option>`;
+    routeSelect.innerHTML = `<option value="all">Select a route</option>`;
 
     for (const route of routes) {
       const option = document.createElement("option");
@@ -264,8 +330,6 @@ document.addEventListener("DOMContentLoaded", () => {
       <strong>Route:</strong> ${bus.routeId}<br>
       <strong>Vehicle:</strong> ${bus.vehicleId}<br>
       <strong>Trip:</strong> ${bus.tripId ?? "?"}<br>
-      <strong>Direction:</strong> ${bus.directionId}<br>
-      <strong>Timestamp:</strong> ${bus.timestamp ?? "?"}
     `);
   }
 
@@ -291,7 +355,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
         if (!buses[id]) {
           const marker = L.marker(pos, {
-            icon: createBusIcon(0, directionId),
+            icon: createBusIcon(0, directionId, route),
           });
 
           marker.bindPopup("");
@@ -305,7 +369,6 @@ document.addEventListener("DOMContentLoaded", () => {
             directionId,
             vehicleId: v.vehicle_id,
             tripId: v.trip_id,
-            timestamp: v.timestamp,
           };
 
           updateBusPopup(buses[id]);
@@ -321,7 +384,6 @@ document.addEventListener("DOMContentLoaded", () => {
           bus.directionId = directionId;
           bus.vehicleId = v.vehicle_id;
           bus.tripId = v.trip_id;
-          bus.timestamp = v.timestamp;
 
           const moved = old.lat !== pos.lat || old.lng !== pos.lng;
 
@@ -337,10 +399,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (!bus.hasDirection) {
               bus.angle = raw;
               bus.hasDirection = true;
-              bus.marker.setIcon(createBusIcon(raw, bus.directionId));
+              bus.marker.setIcon(createBusIcon(raw, bus.directionId, bus.routeId));
               bus.marker.setLatLng(pos);
               bus.last = pos;
-              updateBusPopup(bus);
             } else {
               const stable = smoothAngle(bus.angle ?? raw, raw);
 
@@ -351,17 +412,22 @@ document.addEventListener("DOMContentLoaded", () => {
               }, ROTATE_DURATION);
 
               bus.last = pos;
-              updateBusPopup(bus);
             }
           } else {
-            bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId));
-            updateBusPopup(bus);
+            bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId, bus.routeId));
           }
+
+          updateBusPopup(bus);
         }
       }
 
+      rebuildRouteColorMap(routes);
       availableRoutes = routes;
       updateRouteDropdown();
+      legend.update(Array.from(routes).sort((a, b) =>
+        String(a).localeCompare(String(b), undefined, { numeric: true })
+      ));
+      updateLegendVisibility();
 
       for (const [id, bus] of Object.entries(buses)) {
         if (!seen.has(id)) {
@@ -385,8 +451,7 @@ document.addEventListener("DOMContentLoaded", () => {
     lastZoomBucket = bucket;
 
     for (const bus of Object.values(buses)) {
-      bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId));
-      updateBusPopup(bus);
+      bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId, bus.routeId));
     }
   });
 

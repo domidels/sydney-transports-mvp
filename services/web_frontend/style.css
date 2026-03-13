@@ -1,35 +1,49 @@
+html,
+body {
+  height: 100%;
+  margin: 0;
+}
+
 body {
   font-family: sans-serif;
-  margin: 0;
+  display: flex;
+  flex-direction: column;
 }
 
 .topbar {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
+  gap: 24px;
+  padding: 20px 24px;
   flex-wrap: wrap;
+  flex: 0 0 auto;
 }
 
 h2 {
-  margin: 10px;
-  font-size: 20px;
-}
-
-label {
-  font-weight: 600;
+  margin: 20px;
+  font-size: 40px;
 }
 
 select {
-  padding: 6px 10px;
-  border: 1px solid #cbd5e1;
+  padding: 10px 50px 10px 12px;
+  border: 1px solid #e2ebf7;
   border-radius: 8px;
-  background: white;
-  font-size: 14px;
+  background-color: rgb(2, 107, 159);
+  font-size: 30px;
+  color: white;
+
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+
+  background-image: url("data:image/svg+xml;utf8,<svg fill='white' height='28' viewBox='0 0 20 20' width='28' xmlns='http://www.w3.org/2000/svg'><path d='M5 7l5 6 5-6z'/></svg>");
+  background-repeat: no-repeat;
+  background-position: right 12px center;
 }
 
 #map {
-  height: calc(100vh - 56px);
+  flex: 1 1 auto;
+  min-height: 0;
 }
 
 /* Leaflet icon container */
@@ -105,4 +119,34 @@ select {
 
 .leaflet-tile-pane {
   filter: brightness(1.15) saturate(0.55) grayscale(0.2);
+}
+
+/* ---------- LEGEND ---------- */
+
+.bus-legend {
+  background: rgba(255, 255, 255, 0.96);
+  padding: 12px 14px;
+  border-radius: 10px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.18);
+  font-size: 14px;
+  line-height: 1.4;
+  min-width: 110px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.legend-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 6px;
+}
+
+.legend-color {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  display: inline-block;
+  border: 1px solid rgba(0, 0, 0, 0.12);
+  flex: 0 0 14px;
 }
