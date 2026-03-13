@@ -6,7 +6,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const MOVE_DURATION = 4500;
   const ROTATE_DURATION = 300;
 
-  const map = L.map("map", { zoomControl: false }).setView([-33.92, 151.24], 12);
+  const EASTERN_SUBURBS_BOUNDS = L.latLngBounds(
+    [-33.985, 151.170], // south-west
+    [-33.840, 151.310]  // north-east
+  );
+
+  const map = L.map("map", {
+    zoomControl: false,
+    maxBounds: EASTERN_SUBURBS_BOUNDS,
+    maxBoundsViscosity: 0.85,
+  });
+
+  map.fitBounds(EASTERN_SUBURBS_BOUNDS);
 
   L.control.zoom({ position: "topright" }).addTo(map);
 
@@ -37,15 +48,15 @@ document.addEventListener("DOMContentLoaded", () => {
   function getBusDimensions() {
     switch (getZoomBucket()) {
       case 4:
-        return { width: 24, height: 34 };
+        return { width: 36, height: 50 };
       case 3:
-        return { width: 20, height: 30 };
+        return { width: 32, height: 44 };
       case 2:
-        return { width: 18, height: 26 };
+        return { width: 28, height: 40 };
       case 1:
-        return { width: 16, height: 22 };
+        return { width: 24, height: 34 };
       default:
-        return { width: 14, height: 20 };
+        return { width: 20, height: 28 };
     }
   }
 

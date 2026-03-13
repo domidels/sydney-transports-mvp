@@ -62,7 +62,7 @@ select {
 /* bus body */
 
 .bus-shadow {
-  fill: rgba(0, 0, 0, 0.14);
+  fill: rgba(0, 0, 0, 0.18);
 }
 
 .bus-body {
@@ -74,13 +74,13 @@ select {
 /* windows */
 
 .bus-window {
-  fill: rgba(255, 255, 255, 0.88);
+  fill: rgba(255, 255, 255, 0.9);
 }
 
 /* mid detail */
 
 .bus-detail {
-  fill: rgba(255, 255, 255, 0.9);
+  fill: rgba(255, 255, 255, 0.92);
 }
 
 /* wheels */
@@ -104,5 +104,5 @@ select {
 /* nicer map style */
 
 .leaflet-tile-pane {
-  filter: brightness(1.2) saturate(0.5) grayscale(0.25);
+  filter: brightness(1.15) saturate(0.55) grayscale(0.2);
 }
