@@ -101,7 +101,9 @@ document.addEventListener("DOMContentLoaded", () => {
     maxBoundsViscosity: 0.85,    // soft boundary — map resists but doesn't snap
   });
 
-  map.fitBounds(EASTERN_SUBURBS_BOUNDS);
+  // Fixed zoom + centre instead of fitBounds so the view is identical
+  // regardless of the map container pixel size (local vs CloudFront).
+  map.setView([-33.912, 151.240], 14);
 
   L.control.zoom({ position: "topright" }).addTo(map);
 
