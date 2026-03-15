@@ -101,16 +101,16 @@ document.addEventListener("DOMContentLoaded", () => {
     maxBoundsViscosity: 0.85,    // soft boundary — map resists but doesn't snap
   });
 
-  // Fixed zoom + centre instead of fitBounds so the view is identical
-  // regardless of the map container pixel size (local vs CloudFront).
+  // Temporary view while the container is not yet fully measured.
   map.setView([-33.912, 151.240], 14);
 
-  // Re-measure the container once the page is fully painted so Leaflet has
-  // the correct pixel dimensions (fonts / topbar can shift layout after
-  // DOMContentLoaded on slower connections such as CloudFront cold starts).
+  // After window.load, all CSS is applied and the #map container has its
+  // final pixel dimensions. fitBounds is reliable here — the original
+  // inconsistency (local vs CloudFront) was caused by calling fitBounds
+  // during DOMContentLoaded before the container was measured.
   window.addEventListener("load", () => {
     map.invalidateSize();
-    map.setView([-33.912, 151.240], 14);
+    map.fitBounds(EASTERN_SUBURBS_BOUNDS, { padding: [20, 20] });
   });
 
   L.control.zoom({ position: "topright" }).addTo(map);
