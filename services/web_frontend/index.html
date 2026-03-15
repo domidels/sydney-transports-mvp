@@ -22,6 +22,45 @@
   </div>
 
   <div id="map"></div>
+  <div id="loading-overlay">
+    <div class="loader-box">
+      <div class="loading-road">
+        <!-- Blue bus: bottom lane, going left → right -->
+        <div class="loading-bus loading-bus--blue">
+          <svg viewBox="0 -18 100 168" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="50,-42 18,14 82,14" fill="#2563eb" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="16" y="12" rx="16" ry="16" width="72" height="130" fill="rgba(0,0,0,0.18)" transform="translate(2,2)"/>
+            <rect x="16" y="12" rx="16" ry="16" width="72" height="130" fill="#2563eb" stroke="white" stroke-width="5"/>
+            <rect x="24" y="26" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="42" y="26" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="60" y="26" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="24" y="106" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="42" y="106" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="60" y="106" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="24" y="58" width="52" height="34" rx="8" fill="rgba(255,255,255,0.92)"/>
+          </svg>
+        </div>
+        <!-- Green bus: top lane, going right → left -->
+        <div class="loading-bus loading-bus--green">
+          <svg viewBox="0 -18 100 168" xmlns="http://www.w3.org/2000/svg">
+            <polygon points="50,-42 18,14 82,14" fill="#16a34a" stroke="white" stroke-width="3" stroke-linejoin="round"/>
+            <rect x="16" y="12" rx="16" ry="16" width="72" height="130" fill="rgba(0,0,0,0.18)" transform="translate(2,2)"/>
+            <rect x="16" y="12" rx="16" ry="16" width="72" height="130" fill="#16a34a" stroke="white" stroke-width="5"/>
+            <rect x="24" y="26" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="42" y="26" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="60" y="26" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="24" y="106" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="42" y="106" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="60" y="106" width="16" height="18" rx="4" fill="rgba(255,255,255,0.9)"/>
+            <rect x="24" y="58" width="52" height="34" rx="8" fill="rgba(255,255,255,0.92)"/>
+          </svg>
+        </div>
+      </div>
+      <div class="loading-text-wrap">
+        <p class="loading-text">Bus positions update every 10 seconds &nbsp;·&nbsp; Waiting for first location fix…</p>
+      </div>
+    </div>
+  </div>
 
   <script
     src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"

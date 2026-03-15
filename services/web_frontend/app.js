@@ -1,11 +1,41 @@
+/**
+ * Sydney Buses Live — frontend entry point.
+ *
+ * Fetches real-time bus positions from the REST API every REFRESH_MS
+ * milliseconds, creates or updates Leaflet markers for each vehicle,
+ * and animates their movement and rotation on the map.
+ *
+ * Data flow:
+ *   API Gateway → Lambda (reads S3 latest.json) → this client
+ *
+ * The NSW GTFS-RT feed updates approximately every 10 seconds, so
+ * REFRESH_MS is set to match that cadence.
+ */
 document.addEventListener("DOMContentLoaded", () => {
+
+  // ─── Configuration ────────────────────────────────────────────────────────
+
+  /** REST endpoint returning the latest bus snapshot (JSON). */
   const API_URL =
     "https://px97vg8cc5.execute-api.ap-southeast-2.amazonaws.com/buses/latest";
 
-  const REFRESH_MS = 5000;
-  const MOVE_DURATION = 4500;
+  /** How often (ms) to poll the API. Matches the NSW feed update cadence. */
+  const REFRESH_MS = 10000;
+
+  /**
+   * How long (ms) to animate a bus moving to its new GPS position.
+   * Set just under REFRESH_MS so the bus arrives right before the next update,
+   * giving the impression of continuous movement.
+   */
+  const MOVE_DURATION = 9500;
+
+  /** How long (ms) to animate a bus rotating to its new bearing before moving. */
   const ROTATE_DURATION = 300;
 
+  /**
+   * Colour palette for bus routes, assigned in sorted route order.
+   * Colours cycle if there are more routes than entries.
+   */
   const ROUTE_COLORS = [
     "#2563eb",
     "#dc2626",
@@ -21,8 +51,18 @@ document.addEventListener("DOMContentLoaded", () => {
     "#b91c1c",
   ];
 
+  // ─── Route colour map ─────────────────────────────────────────────────────
+
+  /** Maps route short name → hex colour string. Rebuilt whenever routes change. */
   let routeColorMap = {};
 
+  /**
+   * Rebuild the route→colour mapping from the current set of active routes.
+   * Routes are sorted alphanumerically so the colour assignment is stable
+   * across refreshes (assuming the set of routes doesn't change).
+   *
+   * @param {Set<string>} routesSet - Set of route short names seen in the last fetch.
+   */
   function rebuildRouteColorMap(routesSet) {
     const routes = Array.from(routesSet).sort((a, b) =>
       String(a).localeCompare(String(b), undefined, { numeric: true })
@@ -34,19 +74,31 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  /**
+   * Return the hex colour assigned to a route, defaulting to blue.
+   *
+   * @param {string} routeId - Route short name (e.g. "370").
+   * @returns {string} Hex colour string.
+   */
   function getRouteColor(routeId = "") {
     return routeColorMap[routeId] || "#2563eb";
   }
 
+  // ─── Map initialisation ───────────────────────────────────────────────────
+
+  /**
+   * Geographic bounding box for the Eastern Suburbs of Sydney.
+   * The map is constrained to this area so users cannot pan away.
+   */
   const EASTERN_SUBURBS_BOUNDS = L.latLngBounds(
     [-33.985, 151.170],
     [-33.840, 151.310]
   );
 
   const map = L.map("map", {
-    zoomControl: false,
+    zoomControl: false,          // zoom control added manually (topright)
     maxBounds: EASTERN_SUBURBS_BOUNDS,
-    maxBoundsViscosity: 0.85,
+    maxBoundsViscosity: 0.85,    // soft boundary — map resists but doesn't snap
   });
 
   map.fitBounds(EASTERN_SUBURBS_BOUNDS);
@@ -57,13 +109,22 @@ document.addEventListener("DOMContentLoaded", () => {
     attribution: "OpenStreetMap",
   }).addTo(map);
 
+  // ─── Legend ───────────────────────────────────────────────────────────────
+
+  /** Leaflet control that renders the route colour legend (bottom-left). */
   const legend = L.control({ position: "bottomleft" });
 
+  /** Called by Leaflet when the control is added to the map. */
   legend.onAdd = function () {
     this._div = L.DomUtil.create("div", "bus-legend");
     return this._div;
   };
 
+  /**
+   * Rebuild the legend HTML from the current sorted list of route names.
+   *
+   * @param {string[]} routes - Sorted array of route short names.
+   */
   legend.update = function (routes) {
     if (!this._div) return;
 
@@ -84,24 +145,57 @@ document.addEventListener("DOMContentLoaded", () => {
 
   legend.addTo(map);
 
+  // ─── State ────────────────────────────────────────────────────────────────
+
   const routeSelect = document.getElementById("route-select");
+
+  /**
+   * Live bus registry.
+   * Keys are vehicle IDs (strings); values are bus state objects:
+   *   { marker, last, angle, hasDirection, routeId, directionId, vehicleId, tripId,
+   *     _cancelRotation, _cancelMove }
+   */
   const buses = {};
+
+  /** Currently selected route filter. "all" means no filter. */
   let selectedRoute = "all";
+
+  /** Set of route short names seen in the most recent successful fetch. */
   let availableRoutes = new Set();
+
+  /**
+   * Last zoom bucket used to resize icons.
+   * We only rebuild icons when the bucket changes (not on every zoom step).
+   */
   let lastZoomBucket = getZoomBucket();
 
+  // Show/hide legend and update markers when the user picks a route.
   routeSelect.addEventListener("change", (e) => {
     selectedRoute = e.target.value;
     applyRouteFilter();
     updateLegendVisibility();
   });
 
+  // ─── UI helpers ───────────────────────────────────────────────────────────
+
+  /**
+   * Hide the legend when a specific route is selected (it's redundant then),
+   * and show it again when "all routes" is selected.
+   */
   function updateLegendVisibility() {
     const legendEl = document.querySelector(".bus-legend");
     if (!legendEl) return;
     legendEl.style.display = selectedRoute === "all" ? "block" : "none";
   }
 
+  // ─── Zoom-based icon sizing ───────────────────────────────────────────────
+
+  /**
+   * Map the current zoom level to a discrete size bucket (0–4).
+   * This avoids rebuilding all icons on every individual zoom step.
+   *
+   * @returns {number} Bucket index 0 (smallest) to 4 (largest).
+   */
   function getZoomBucket() {
     const z = map.getZoom();
     if (z >= 16) return 4;
@@ -111,44 +205,63 @@ document.addEventListener("DOMContentLoaded", () => {
     return 0;
   }
 
+  /**
+   * Return the pixel width and height for bus icons at the current zoom level.
+   * The bus is kept narrow so overlapping vehicles on the same road are visible.
+   *
+   * @returns {{ width: number, height: number }}
+   */
   function getBusDimensions() {
     switch (getZoomBucket()) {
       case 4:
-        return { width: 36, height: 50 };
+        return { width: 18, height: 50 };
       case 3:
-        return { width: 32, height: 44 };
+        return { width: 15, height: 44 };
       case 2:
-        return { width: 28, height: 40 };
+        return { width: 13, height: 40 };
       case 1:
-        return { width: 24, height: 34 };
+        return { width: 12, height: 34 };
       default:
-        return { width: 20, height: 28 };
+        return { width: 10, height: 28 };
     }
   }
 
-  function buildBusSvg(width, height, angle = 0, directionId = 0, routeId = "") {
-    const color = getRouteColor(routeId);
+  // ─── Bus icon ─────────────────────────────────────────────────────────────
 
+  /**
+   * Build the HTML string for a bus marker icon.
+   *
+   * The SVG contains no hardcoded colour or rotation — those are applied
+   * separately via CSS custom properties and inline transforms on the DOM
+   * element, so the icon HTML can be shared across all buses at a given
+   * zoom level without rebuilding it per vehicle.
+   *
+   * SVG coordinate system: viewBox "0 -18 100 168".
+   *   - The triangle (arrow) points upward (north) at angle 0.
+   *   - Rotation is applied externally on .bus-wrap.
+   *   - Colour is set via --bus-color on the parent Leaflet element.
+   *
+   * @param {number} width  - Icon width in pixels.
+   * @param {number} height - Icon height in pixels.
+   * @returns {string} HTML string for the icon.
+   */
+  function buildBusSvg(width, height) {
     return `
       <div
         class="bus-wrap"
-        style="
-          --bus-width:${width}px;
-          --bus-height:${height}px;
-          --bus-color:${color};
-          transform: rotate(${angle}deg);
-          transform-origin: center center;
-        "
+        style="--bus-width:${width}px; --bus-height:${height}px;"
       >
         <svg viewBox="0 -18 100 168" class="bus-svg">
+          <!-- Direction arrow — points toward the front of the bus -->
           <polygon
-            points="50,-20 32,10 68,10"
-            fill="${color}"
+            points="50,-42 18,14 82,14"
+            fill="var(--bus-color)"
             stroke="white"
             stroke-width="3"
             stroke-linejoin="round"
           />
 
+          <!-- Drop shadow for the bus body -->
           <rect
             x="14"
             y="10"
@@ -160,6 +273,7 @@ document.addEventListener("DOMContentLoaded", () => {
             transform="translate(2,2)"
           />
 
+          <!-- Bus body -->
           <rect
             x="14"
             y="10"
@@ -170,51 +284,100 @@ document.addEventListener("DOMContentLoaded", () => {
             class="bus-body"
           />
 
+          <!-- Front windows -->
           <rect x="24" y="26" width="16" height="18" rx="4" class="bus-window" />
           <rect x="42" y="26" width="16" height="18" rx="4" class="bus-window" />
           <rect x="60" y="26" width="16" height="18" rx="4" class="bus-window" />
 
+          <!-- Rear windows -->
           <rect x="24" y="106" width="16" height="18" rx="4" class="bus-window" />
           <rect x="42" y="106" width="16" height="18" rx="4" class="bus-window" />
           <rect x="60" y="106" width="16" height="18" rx="4" class="bus-window" />
 
+          <!-- Mid-body destination/route panel -->
           <rect x="24" y="58" width="52" height="34" rx="8" class="bus-detail" />
 
-          <circle cx="22" cy="36" r="6" class="bus-wheel" />
-          <circle cx="78" cy="36" r="6" class="bus-wheel" />
-          <circle cx="22" cy="114" r="6" class="bus-wheel" />
-          <circle cx="78" cy="114" r="6" class="bus-wheel" />
         </svg>
       </div>
     `;
   }
 
-  function createBusIcon(angle = 0, directionId = 0, routeId = "") {
+  /**
+   * Create a Leaflet divIcon for the current zoom level.
+   * The icon is intentionally colour- and rotation-agnostic; those are
+   * applied per-bus via applyBusStyle() after the marker is in the DOM.
+   *
+   * @returns {L.DivIcon}
+   */
+  function createBusIcon() {
     const { width, height } = getBusDimensions();
 
     return L.divIcon({
       className: "bus-leaflet-icon",
-      html: buildBusSvg(width, height, angle, directionId, routeId),
+      html: buildBusSvg(width, height),
       iconSize: [width, height],
       iconAnchor: [width / 2, height / 2],
       popupAnchor: [0, -height / 2],
     });
   }
 
+  /**
+   * Apply the route colour and current heading to a bus marker's DOM element.
+   *
+   * This is the only place that writes visual state to the DOM for colour
+   * and angle. It is called:
+   *   - When a bus is first added to the map.
+   *   - When a bus's direction is first computed.
+   *   - When the bus hasn't moved (to keep the colour in sync with the map).
+   *   - After the colour map is rebuilt (route set changed).
+   *   - After setIcon() on zoom (which resets the DOM element).
+   *
+   * @param {{ marker: L.Marker, routeId: string, angle: number }} bus
+   */
+  function applyBusStyle(bus) {
+    const el = bus.marker.getElement();
+    if (!el) return; // marker not yet in the DOM
+
+    // Set the CSS custom property used by .bus-body and the SVG polygon.
+    el.style.setProperty("--bus-color", getRouteColor(bus.routeId));
+
+    // Rotate the inner wrapper so the arrow points in the direction of travel.
+    const wrap = el.querySelector(".bus-wrap");
+    if (wrap) wrap.style.transform = `rotate(${bus.angle ?? 0}deg)`;
+  }
+
+  // ─── Geometry helpers ─────────────────────────────────────────────────────
+
+  /** @param {number} d - Degrees. @returns {number} Radians. */
   function toRad(d) {
     return (d * Math.PI) / 180;
   }
 
+  /** @param {number} r - Radians. @returns {number} Degrees. */
   function toDeg(r) {
     return (r * 180) / Math.PI;
   }
 
+  /**
+   * Normalise an angle to [0, 360).
+   *
+   * @param {number} a - Angle in degrees (may be negative or > 360).
+   * @returns {number}
+   */
   function normalizeAngle(a) {
     let out = a % 360;
     if (out < 0) out += 360;
     return out;
   }
 
+  /**
+   * Compute the shortest signed angular delta from angle a to angle b.
+   * Result is in (-180, 180] so the bus always rotates the short way around.
+   *
+   * @param {number} a - Start angle (degrees).
+   * @param {number} b - End angle (degrees).
+   * @returns {number} Signed delta in degrees.
+   */
   function shortestDelta(a, b) {
     let d = normalizeAngle(b) - normalizeAngle(a);
     if (d > 180) d -= 360;
@@ -222,9 +385,23 @@ document.addEventListener("DOMContentLoaded", () => {
     return d;
   }
 
+  /**
+   * Compute the compass bearing (0 = north, clockwise) from point 1 to point 2
+   * using the spherical law of cosines (accurate enough at city scale).
+   *
+   * If the two points are virtually identical (GPS jitter), the previous
+   * bearing is returned unchanged to avoid spurious rotations.
+   *
+   * @param {number} lat1 - Origin latitude.
+   * @param {number} lon1 - Origin longitude.
+   * @param {number} lat2 - Destination latitude.
+   * @param {number} lon2 - Destination longitude.
+   * @param {number} prev - Previous bearing to return if movement is negligible.
+   * @returns {number} Bearing in degrees [0, 360).
+   */
   function computeBearing(lat1, lon1, lat2, lon2, prev = 0) {
     const approxMove = Math.abs(lat2 - lat1) + Math.abs(lon2 - lon1);
-    if (approxMove < 0.00005) return prev;
+    if (approxMove < 0.00005) return prev; // ~5 m threshold — treat as stationary
 
     const phi1 = toRad(lat1);
     const phi2 = toRad(lat2);
@@ -238,55 +415,102 @@ document.addEventListener("DOMContentLoaded", () => {
     return normalizeAngle(toDeg(Math.atan2(y, x)));
   }
 
-  function smoothAngle(prev, next, alpha = 0.4) {
-    const d = shortestDelta(prev, next);
-    return normalizeAngle(prev + d * alpha);
-  }
+  // ─── Animation ────────────────────────────────────────────────────────────
 
+  /**
+   * Animate a bus rotating from its current angle to newAngle over ROTATE_DURATION ms.
+   *
+   * Cancels any in-progress rotation for this bus before starting.
+   * The rotation is applied directly to the .bus-wrap DOM element's CSS transform
+   * to avoid rebuilding the SVG icon on every animation frame.
+   *
+   * @param {{ marker: L.Marker, angle: number, _cancelRotation: Function|null }} bus
+   * @param {number} newAngle - Target heading in degrees [0, 360).
+   */
   function animateRotation(bus, newAngle) {
+    // Cancel any previous rotation that may still be running.
+    if (bus._cancelRotation) bus._cancelRotation();
+
+    let cancelled = false;
+    bus._cancelRotation = () => { cancelled = true; };
+
     const startAngle = bus.angle ?? newAngle;
     const delta = shortestDelta(startAngle, newAngle);
     const start = performance.now();
 
     function step(now) {
+      if (cancelled) return;
+
       const t = Math.min((now - start) / ROTATE_DURATION, 1);
       const current = normalizeAngle(startAngle + delta * t);
 
-      bus.marker.setIcon(createBusIcon(current, bus.directionId, bus.routeId));
-      updateBusPopup(bus);
+      // Re-query the element each frame in case setIcon() replaced the DOM node.
+      const wrap = bus.marker.getElement()?.querySelector(".bus-wrap");
+      if (wrap) wrap.style.transform = `rotate(${current}deg)`;
 
-      if (t < 1) {
-        requestAnimationFrame(step);
-      } else {
-        bus.angle = newAngle;
-      }
+      if (t < 1) requestAnimationFrame(step);
+      else { bus.angle = newAngle; bus._cancelRotation = null; }
     }
 
     requestAnimationFrame(step);
   }
 
-  function animateMove(marker, from, to) {
+  /**
+   * Animate a bus marker sliding from its current visual position to a new GPS position
+   * over MOVE_DURATION ms.
+   *
+   * Cancels any in-progress move for this bus before starting.
+   * The start position is taken from the marker's current screen position (not the
+   * last reported GPS fix) so that interrupted animations chain smoothly without
+   * visible jumps.
+   *
+   * @param {{ marker: L.Marker, _cancelMove: Function|null }} bus
+   * @param {L.LatLng} to - Destination GPS coordinate.
+   */
+  function animateMove(bus, to) {
+    // Cancel any previous move that may still be running.
+    if (bus._cancelMove) bus._cancelMove();
+
+    let cancelled = false;
+    bus._cancelMove = () => { cancelled = true; };
+
+    // Use the current visual position as start, not the last reported GPS.
+    const from = bus.marker.getLatLng();
     const start = performance.now();
 
     function step(now) {
+      if (cancelled) return;
+
       const t = Math.min((now - start) / MOVE_DURATION, 1);
-
-      const lat = from.lat + (to.lat - from.lat) * t;
-      const lon = from.lng + (to.lng - from.lng) * t;
-
-      marker.setLatLng([lat, lon]);
+      bus.marker.setLatLng([
+        from.lat + (to.lat - from.lat) * t,
+        from.lng + (to.lng - from.lng) * t,
+      ]);
 
       if (t < 1) requestAnimationFrame(step);
+      else bus._cancelMove = null;
     }
 
     requestAnimationFrame(step);
   }
 
+  // ─── Route filter ─────────────────────────────────────────────────────────
+
+  /**
+   * Return true if the bus should be visible given the current route filter.
+   *
+   * @param {{ routeId: string }} bus
+   * @returns {boolean}
+   */
   function busMatchesFilter(bus) {
     if (selectedRoute === "all") return true;
     return String(bus.routeId) === String(selectedRoute);
   }
 
+  /**
+   * Add or remove each bus marker from the map according to the current filter.
+   * Called after a route is selected and after each data refresh.
+   */
   function applyRouteFilter() {
     for (const bus of Object.values(buses)) {
       const visible = busMatchesFilter(bus);
@@ -301,6 +525,13 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // ─── Dropdown ─────────────────────────────────────────────────────────────
+
+  /**
+   * Rebuild the route <select> options from the current availableRoutes set.
+   * Preserves the user's current selection if the route still exists.
+   * Resets to "all" if the selected route has disappeared.
+   */
   function updateRouteDropdown() {
     const currentValue = routeSelect.value;
 
@@ -317,6 +548,7 @@ document.addEventListener("DOMContentLoaded", () => {
       routeSelect.appendChild(option);
     }
 
+    // Restore selection if still valid.
     if (routes.includes(currentValue)) {
       routeSelect.value = currentValue;
     } else {
@@ -325,6 +557,14 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
+  // ─── Popup ────────────────────────────────────────────────────────────────
+
+  /**
+   * (Re)bind the click popup for a bus marker with its latest metadata.
+   * Called whenever bus data is refreshed so the popup stays up to date.
+   *
+   * @param {{ marker: L.Marker, routeId: string, vehicleId: string, tripId: string }} bus
+   */
   function updateBusPopup(bus) {
     bus.marker.bindPopup(`
       <strong>Route:</strong> ${bus.routeId}<br>
@@ -333,15 +573,54 @@ document.addEventListener("DOMContentLoaded", () => {
     `);
   }
 
+  // ─── Main data refresh ────────────────────────────────────────────────────
+
+  /**
+   * Fetch the latest bus snapshot from the API and update all markers.
+   *
+   * Strategy:
+   *  1. Pre-scan the vehicle list to collect route names and rebuild the
+   *     colour map *before* processing markers, so applyBusStyle() always
+   *     has correct colours on first paint.
+   *  2. For each vehicle:
+   *     - If new: create marker, add to map, apply style.
+   *     - If known and moved: rotate to new bearing, then animate to new position.
+   *     - If known and stationary: refresh style (keeps colour in sync).
+   *  3. Remove markers for vehicles absent from the latest snapshot.
+   *  4. Once at least one bus has a known direction, hide the loading overlay.
+   */
   async function updateBuses() {
     try {
       const res = await fetch(API_URL, { cache: "no-store" });
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
 
       const data = await res.json();
-      const seen = new Set();
-      const routes = new Set();
+      const seen = new Set();   // vehicle IDs present in this snapshot
+      const routes = new Set(); // route short names present in this snapshot
 
+      // ── Pass 1: collect routes and rebuild colour map if needed ──────────
+      for (const v of data.vehicles || []) {
+        if (!v.vehicle_id || v.lat == null || v.lon == null) continue;
+        routes.add(String(v.route_id ?? "?").split("_")[1] ?? "?");
+      }
+
+      const routesChanged =
+        routes.size !== availableRoutes.size ||
+        [...routes].some((r) => !availableRoutes.has(r));
+
+      if (routesChanged) {
+        rebuildRouteColorMap(routes);
+        availableRoutes = routes;
+        updateRouteDropdown();
+        legend.update(Array.from(routes).sort((a, b) =>
+          String(a).localeCompare(String(b), undefined, { numeric: true })
+        ));
+        updateLegendVisibility();
+        // Re-apply colours to all existing buses — their indices may have shifted.
+        for (const bus of Object.values(buses)) applyBusStyle(bus);
+      }
+
+      // ── Pass 2: create or update each bus marker ─────────────────────────
       for (const v of data.vehicles || []) {
         if (!v.vehicle_id || v.lat == null || v.lon == null) continue;
 
@@ -354,17 +633,16 @@ document.addEventListener("DOMContentLoaded", () => {
         routes.add(route);
 
         if (!buses[id]) {
-          const marker = L.marker(pos, {
-            icon: createBusIcon(0, directionId, route),
-          });
+          // ── New bus: create marker and register state ──────────────────
+          const marker = L.marker(pos, { icon: createBusIcon() });
 
           marker.bindPopup("");
 
           buses[id] = {
             marker,
-            last: pos,
-            angle: 0,
-            hasDirection: false,
+            last: pos,          // last reported GPS position
+            angle: 0,           // current heading (degrees, 0 = north)
+            hasDirection: false, // true once a bearing has been computed
             routeId: route,
             directionId,
             vehicleId: v.vehicle_id,
@@ -375,8 +653,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           if (selectedRoute === "all" || selectedRoute === route) {
             marker.addTo(map);
+            applyBusStyle(buses[id]); // colour + initial angle (0°)
           }
+
         } else {
+          // ── Known bus: update metadata and animate if position changed ──
           const bus = buses[id];
           const old = bus.last;
 
@@ -397,38 +678,35 @@ document.addEventListener("DOMContentLoaded", () => {
             );
 
             if (!bus.hasDirection) {
+              // First movement: snap to bearing immediately, no animation.
               bus.angle = raw;
               bus.hasDirection = true;
-              bus.marker.setIcon(createBusIcon(raw, bus.directionId, bus.routeId));
+              applyBusStyle(bus);
               bus.marker.setLatLng(pos);
               bus.last = pos;
             } else {
-              const stable = smoothAngle(bus.angle ?? raw, raw);
+              // Subsequent movements: rotate first, then move after rotation ends.
+              const stable = raw;
 
               animateRotation(bus, stable);
 
+              // Delay the move so the bus is already pointing the right way.
               setTimeout(() => {
-                animateMove(bus.marker, old, pos);
+                animateMove(bus, pos);
               }, ROTATE_DURATION);
 
               bus.last = pos;
             }
           } else {
-            bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId, bus.routeId));
+            // Bus hasn't moved — refresh style to keep colour in sync.
+            applyBusStyle(bus);
           }
 
           updateBusPopup(bus);
         }
       }
 
-      rebuildRouteColorMap(routes);
-      availableRoutes = routes;
-      updateRouteDropdown();
-      legend.update(Array.from(routes).sort((a, b) =>
-        String(a).localeCompare(String(b), undefined, { numeric: true })
-      ));
-      updateLegendVisibility();
-
+      // ── Pass 3: remove markers for buses no longer in the feed ───────────
       for (const [id, bus] of Object.entries(buses)) {
         if (!seen.has(id)) {
           if (map.hasLayer(bus.marker)) {
@@ -439,22 +717,49 @@ document.addEventListener("DOMContentLoaded", () => {
       }
 
       applyRouteFilter();
+
+      // ── Loading overlay: hide once at least one bus has a known heading ──
+      const anyOriented = Object.values(buses).some(b => b.hasDirection);
+      if (anyOriented) {
+        // Wait one animation frame to ensure the browser has painted the
+        // coloured, oriented bus icons before the overlay disappears.
+        requestAnimationFrame(() => {
+          const overlay = document.getElementById("loading-overlay");
+          if (overlay && !overlay.classList.contains("hidden")) {
+            overlay.classList.add("hidden");
+            overlay.addEventListener("transitionend", () => overlay.remove(), { once: true });
+          }
+        });
+      }
+
     } catch (e) {
       console.error("Failed to update buses:", e);
     }
   }
 
+  // ─── Zoom handler ─────────────────────────────────────────────────────────
+
+  /**
+   * When the map zoom changes bucket, rebuild all bus icons at the new size
+   * and re-apply per-bus colour and angle (setIcon() resets the DOM element).
+   * A single shared icon object is used for all buses to avoid redundant work.
+   */
   map.on("zoomend", () => {
     const bucket = getZoomBucket();
-    if (bucket === lastZoomBucket) return;
+    if (bucket === lastZoomBucket) return; // no size change — nothing to do
 
     lastZoomBucket = bucket;
 
+    const icon = createBusIcon(); // one icon instance shared by all buses
     for (const bus of Object.values(buses)) {
-      bus.marker.setIcon(createBusIcon(bus.angle ?? 0, bus.directionId, bus.routeId));
+      bus.marker.setIcon(icon);
+      applyBusStyle(bus); // restore colour + angle after setIcon() reset
     }
   });
 
+  // ─── Bootstrap ────────────────────────────────────────────────────────────
+
+  // Fetch immediately on load, then repeat every REFRESH_MS.
   updateBuses();
   setInterval(updateBuses, REFRESH_MS);
 });

@@ -121,6 +121,117 @@ select {
   filter: brightness(1.15) saturate(0.55) grayscale(0.2);
 }
 
+/* ---------- LOADING OVERLAY ---------- */
+
+#loading-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.4);
+  backdrop-filter: blur(2px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  transition: opacity 0.6s ease;
+}
+
+#loading-overlay.hidden {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.loader-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  color: #374151;
+  font-size: 15px;
+  font-weight: 500;
+}
+
+.loading-road {
+  position: relative;
+  width: 260px;
+  height: 64px;
+  background: #e5e7eb;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+/* Solid centre dividing line separating the two lanes */
+.loading-road::before {
+  content: "";
+  position: absolute;
+  top: 50%;
+  left: 0;
+  right: 0;
+  height: 2px;
+  margin-top: -1px;
+  background: white;
+  z-index: 1;
+}
+
+
+.loading-bus {
+  position: absolute;
+  width: 16px;
+  height: 42px;
+  z-index: 2;
+}
+
+.loading-bus svg {
+  width: 100%;
+  height: 100%;
+}
+
+/* Blue bus: bottom lane (right-hand traffic), going left → right */
+.loading-bus--blue {
+  top: 75%;
+  transform: translateY(-50%) rotate(90deg);
+  animation: bus-drive-right 1.8s linear infinite;
+}
+
+/* Green bus: top lane, going right → left, offset so they cross mid-road */
+.loading-bus--green {
+  top: 25%;
+  transform: translateY(-50%) rotate(-90deg);
+  animation: bus-drive-left 1.8s linear infinite;
+  animation-delay: -0.9s; /* half-period offset so they meet in the middle */
+}
+
+@keyframes bus-drive-right {
+  from { left: -30px; }
+  to   { left: 275px; }
+}
+
+@keyframes bus-drive-left {
+  from { left: 275px; }
+  to   { left: -30px; }
+}
+
+.loading-text-wrap {
+  width: 260px;
+  overflow: hidden;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 8px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+  padding: 8px 0;
+}
+
+.loading-text {
+  margin: 0;
+  display: inline-block;
+  white-space: nowrap;
+  padding: 0 260px 0 0;
+  animation: text-scroll 8s linear infinite;
+}
+
+@keyframes text-scroll {
+  from { transform: translateX(260px); }
+  to   { transform: translateX(-100%); }
+}
+
 /* ---------- LEGEND ---------- */
 
 .bus-legend {
@@ -133,6 +244,27 @@ select {
   min-width: 110px;
   max-height: 220px;
   overflow-y: auto;
+}
+
+@media (max-width: 600px) {
+  .bus-legend {
+    font-size: 11px;
+    padding: 6px 8px;
+    max-height: 120px;
+    min-width: 70px;
+    opacity: 0.85;
+  }
+
+  .legend-row {
+    gap: 5px;
+    margin-top: 4px;
+  }
+
+  .legend-color {
+    width: 10px;
+    height: 10px;
+    flex: 0 0 10px;
+  }
 }
 
 .legend-row {
