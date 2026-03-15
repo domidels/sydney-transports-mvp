@@ -101,17 +101,24 @@ document.addEventListener("DOMContentLoaded", () => {
     maxBoundsViscosity: 0.85,    // soft boundary — map resists but doesn't snap
   });
 
-  // Fixed centre and zoom. Zoom 14 is chosen so buses are large enough to
-  // read on any screen — fitBounds is intentionally avoided because it
-  // selects a lower zoom on larger screens, making buses appear too small.
+  // Fallback view in case the ResizeObserver below fires very late.
   map.setView([-33.912, 151.240], 14);
 
-  // Re-measure the container once all assets are loaded (CSS may shift the
-  // topbar height after DOMContentLoaded on slow connections).
-  window.addEventListener("load", () => {
-    map.invalidateSize({ reset: true });
-    map.setView([-33.912, 151.240], 14, { animate: false });
+  // Chrome (HTTP/2 + HTTPS) can fire DOMContentLoaded before the flex
+  // layout has calculated #map's height, so Leaflet initialises with a
+  // zero-height container and picks the wrong zoom.  A ResizeObserver
+  // fires as soon as the element gets its real pixel dimensions —
+  // regardless of whether that happens before or after CSS is parsed —
+  // which is more reliable than window.load or setTimeout across browsers.
+  const mapEl = document.getElementById("map");
+  const ro = new ResizeObserver(() => {
+    if (mapEl.offsetHeight > 0) {
+      ro.disconnect();                            // one-shot, only initial sizing
+      map.invalidateSize({ reset: true });
+      map.setView([-33.912, 151.240], 14, { animate: false });
+    }
   });
+  ro.observe(mapEl);
 
   L.control.zoom({ position: "topright" }).addTo(map);
 
