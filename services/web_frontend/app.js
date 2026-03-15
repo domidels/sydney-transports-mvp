@@ -105,6 +105,14 @@ document.addEventListener("DOMContentLoaded", () => {
   // regardless of the map container pixel size (local vs CloudFront).
   map.setView([-33.912, 151.240], 14);
 
+  // Re-measure the container once the page is fully painted so Leaflet has
+  // the correct pixel dimensions (fonts / topbar can shift layout after
+  // DOMContentLoaded on slower connections such as CloudFront cold starts).
+  window.addEventListener("load", () => {
+    map.invalidateSize();
+    map.setView([-33.912, 151.240], 14);
+  });
+
   L.control.zoom({ position: "topright" }).addTo(map);
 
   L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
