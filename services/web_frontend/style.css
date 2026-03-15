@@ -246,6 +246,27 @@ select {
   overflow-y: auto;
 }
 
+@media (max-width: 340px) {
+  .loading-road {
+    width: 200px;
+  }
+  .loading-text-wrap {
+    width: 200px;
+  }
+  @keyframes bus-drive-right {
+    from { left: -30px; }
+    to   { left: 215px; }
+  }
+  @keyframes bus-drive-left {
+    from { left: 215px; }
+    to   { left: -30px; }
+  }
+  @keyframes text-scroll {
+    from { transform: translateX(200px); }
+    to   { transform: translateX(-100%); }
+  }
+}
+
 @media (max-width: 600px) {
   .bus-legend {
     font-size: 11px;
