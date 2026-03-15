@@ -101,16 +101,16 @@ document.addEventListener("DOMContentLoaded", () => {
     maxBoundsViscosity: 0.85,    // soft boundary — map resists but doesn't snap
   });
 
-  // Temporary view while the container is not yet fully measured.
+  // Fixed centre and zoom. Zoom 14 is chosen so buses are large enough to
+  // read on any screen — fitBounds is intentionally avoided because it
+  // selects a lower zoom on larger screens, making buses appear too small.
   map.setView([-33.912, 151.240], 14);
 
-  // After window.load, all CSS is applied and the #map container has its
-  // final pixel dimensions. fitBounds is reliable here — the original
-  // inconsistency (local vs CloudFront) was caused by calling fitBounds
-  // during DOMContentLoaded before the container was measured.
+  // Re-measure the container once all assets are loaded (CSS may shift the
+  // topbar height after DOMContentLoaded on slow connections).
   window.addEventListener("load", () => {
-    map.invalidateSize();
-    map.fitBounds(EASTERN_SUBURBS_BOUNDS, { padding: [20, 20] });
+    map.invalidateSize({ reset: true });
+    map.setView([-33.912, 151.240], 14, { animate: false });
   });
 
   L.control.zoom({ position: "topright" }).addTo(map);
