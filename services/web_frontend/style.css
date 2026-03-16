@@ -277,6 +277,10 @@ select {
 }
 
 @media (max-width: 600px) {
+  .leaflet-bottom.leaflet-left {
+    margin-bottom: 60px;
+  }
+
   .bus-legend {
     font-size: 11px;
     padding: 6px 8px;
