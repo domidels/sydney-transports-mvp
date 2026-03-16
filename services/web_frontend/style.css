@@ -41,6 +41,18 @@ select {
   background-position: right 12px center;
 }
 
+select option {
+  background-color: #000;
+  color: white;
+}
+
+select option:hover,
+select option:focus,
+select option:checked {
+  background-color: #000;
+  color: white;
+}
+
 #map {
   flex: 1 1 auto;
   min-height: 0;
