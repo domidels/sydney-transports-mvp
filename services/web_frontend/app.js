@@ -574,6 +574,11 @@ document.addEventListener("DOMContentLoaded", () => {
       <strong>Vehicle:</strong> ${bus.vehicleId}<br>
       <strong>Trip:</strong> ${bus.tripId ?? "?"}<br>
     `);
+    bus.marker.bindTooltip(`Route ${bus.routeId}`, {
+      permanent: false,
+      direction: "top",
+      offset: [0, -10],
+    });
   }
 
   // ─── Main data refresh ────────────────────────────────────────────────────
