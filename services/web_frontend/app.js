@@ -19,15 +19,15 @@ document.addEventListener("DOMContentLoaded", () => {
   const API_URL =
     "https://px97vg8cc5.execute-api.ap-southeast-2.amazonaws.com/buses/latest";
 
-  /** How often (ms) to poll the API. Matches the NSW feed update cadence. */
-  const REFRESH_MS = 10000;
+  /** How often (ms) to poll the API. */
+  const REFRESH_MS = 3000;
 
   /**
    * How long (ms) to animate a bus moving to its new GPS position.
    * Set just under REFRESH_MS so the bus arrives right before the next update,
    * giving the impression of continuous movement.
    */
-  const MOVE_DURATION = 9500;
+  const MOVE_DURATION = 5000;
 
   /** How long (ms) to animate a bus rotating to its new bearing before moving. */
   const ROTATE_DURATION = 300;
@@ -43,10 +43,14 @@ document.addEventListener("DOMContentLoaded", () => {
     "313":  "#2563eb", // blue
     "333":  "#16a34a", // green
     "350":  "#dc2626", // red
+    "360":  "#0d9488", // teal
+    "362":  "#db2777", // rose
     "370":  "#f59e0b", // amber
     "373":  "#9333ea", // purple
     "379":  "#0891b2", // cyan
+    "380":  "#65a30d", // lime
     "390X": "#ea580c", // orange
+    "726e": "#6366f1", // indigo
   };
 
   /**
