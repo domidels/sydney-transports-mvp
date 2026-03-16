@@ -32,56 +32,31 @@ document.addEventListener("DOMContentLoaded", () => {
   /** How long (ms) to animate a bus rotating to its new bearing before moving. */
   const ROTATE_DURATION = 300;
 
+  // ─── Route colour ─────────────────────────────────────────────────────────
+
   /**
-   * Colour palette for bus routes, assigned in sorted route order.
-   * Colours cycle if there are more routes than entries.
+   * Fixed colour per route. Each route always renders with the same colour
+   * regardless of timing or what other routes are active.
+   * Unknown routes fall back to grey.
    */
-  const ROUTE_COLORS = [
-    "#2563eb",
-    "#dc2626",
-    "#16a34a",
-    "#9333ea",
-    "#f59e0b",
-    "#0891b2",
-    "#be185d",
-    "#4d7c0f",
-    "#ea580c",
-    "#0f766e",
-    "#7c3aed",
-    "#b91c1c",
-  ];
-
-  // ─── Route colour map ─────────────────────────────────────────────────────
-
-  /** Maps route short name → hex colour string. Rebuilt whenever routes change. */
-  let routeColorMap = {};
+  const ROUTE_COLORS = {
+    "313":  "#2563eb", // blue
+    "333":  "#16a34a", // green
+    "350":  "#dc2626", // red
+    "370":  "#f59e0b", // amber
+    "373":  "#9333ea", // purple
+    "379":  "#0891b2", // cyan
+    "390X": "#ea580c", // orange
+  };
 
   /**
-   * Rebuild the route→colour mapping from the current set of active routes.
-   * Routes are sorted alphanumerically so the colour assignment is stable
-   * across refreshes (assuming the set of routes doesn't change).
-   *
-   * @param {Set<string>} routesSet - Set of route short names seen in the last fetch.
-   */
-  function rebuildRouteColorMap(routesSet) {
-    const routes = Array.from(routesSet).sort((a, b) =>
-      String(a).localeCompare(String(b), undefined, { numeric: true })
-    );
-
-    routeColorMap = {};
-    routes.forEach((route, index) => {
-      routeColorMap[route] = ROUTE_COLORS[index % ROUTE_COLORS.length];
-    });
-  }
-
-  /**
-   * Return the hex colour assigned to a route, defaulting to blue.
+   * Return the colour assigned to a route.
    *
    * @param {string} routeId - Route short name (e.g. "370").
    * @returns {string} Hex colour string.
    */
   function getRouteColor(routeId = "") {
-    return routeColorMap[routeId] || "#2563eb";
+    return ROUTE_COLORS[String(routeId)] ?? "#6b7280";
   }
 
   // ─── Map initialisation ───────────────────────────────────────────────────
@@ -271,11 +246,13 @@ document.addEventListener("DOMContentLoaded", () => {
         <svg viewBox="0 -18 100 168" class="bus-svg">
           <!-- Direction arrow — points toward the front of the bus -->
           <polygon
+            class="bus-arrow"
             points="50,-42 18,14 82,14"
             fill="var(--bus-color)"
             stroke="white"
             stroke-width="3"
             stroke-linejoin="round"
+            visibility="hidden"
           />
 
           <!-- Drop shadow for the bus body -->
@@ -361,6 +338,10 @@ document.addEventListener("DOMContentLoaded", () => {
     // Rotate the inner wrapper so the arrow points in the direction of travel.
     const wrap = el.querySelector(".bus-wrap");
     if (wrap) wrap.style.transform = `rotate(${bus.angle ?? 0}deg)`;
+
+    // Show the direction arrow only once the bearing is known.
+    const arrow = el.querySelector(".bus-arrow");
+    if (arrow) arrow.setAttribute("visibility", bus.hasDirection ? "visible" : "hidden");
   }
 
   // ─── Geometry helpers ─────────────────────────────────────────────────────
@@ -534,6 +515,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (visible && !map.hasLayer(bus.marker)) {
         bus.marker.addTo(map);
+        applyBusStyle(bus); // colour + angle — DOM element is only available after addTo()
       }
 
       if (!visible && map.hasLayer(bus.marker)) {
@@ -626,7 +608,6 @@ document.addEventListener("DOMContentLoaded", () => {
         [...routes].some((r) => !availableRoutes.has(r));
 
       if (routesChanged) {
-        rebuildRouteColorMap(routes);
         availableRoutes = routes;
         updateRouteDropdown();
         legend.update(Array.from(routes).sort((a, b) =>
@@ -769,8 +750,13 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const icon = createBusIcon(); // one icon instance shared by all buses
     for (const bus of Object.values(buses)) {
-      bus.marker.setIcon(icon);
-      applyBusStyle(bus); // restore colour + angle after setIcon() reset
+      if (map.hasLayer(bus.marker)) {
+        bus.marker.setIcon(icon);
+        applyBusStyle(bus); // restore colour + angle after setIcon() reset
+      } else {
+        // Bus is filtered out — update its icon so the DOM is correct when re-added.
+        bus.marker.setIcon(icon);
+      }
     }
   });
 

@@ -150,6 +150,15 @@ select {
   font-weight: 500;
 }
 
+.loading-title {
+  margin: 0 0 10px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #1e293b;
+  text-align: center;
+  letter-spacing: 0.03em;
+}
+
 .loading-road {
   position: relative;
   width: 260px;
