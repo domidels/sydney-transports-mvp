@@ -49,8 +49,8 @@ select option {
 select option:hover,
 select option:focus,
 select option:checked {
-  background-color: #000;
-  color: white;
+  background-color: white;
+  color: black;
 }
 
 #map {
