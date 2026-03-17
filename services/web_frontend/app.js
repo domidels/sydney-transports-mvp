@@ -50,7 +50,7 @@ document.addEventListener("DOMContentLoaded", () => {
     "373":  "#9333ea", // purple
     "379":  "#0891b2", // cyan
     "380":  "#65a30d", // lime
-    "381":  "#ca8a04", // yellow
+    "381":  "#06f822b9", // light green
     "390X": "#ea580c", // orange
     "726e": "#6366f1", // indigo
   };
