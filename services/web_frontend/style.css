@@ -298,6 +298,35 @@ select option:checked {
 }
 
 @media (max-width: 600px) {
+  html, body {
+    height: auto;
+    overflow-y: auto;
+  }
+
+  h2 {
+    font-size: 22px;
+    margin: 8px 12px;
+  }
+
+  .subtitle {
+    font-size: 11px;
+    padding: 0 12px 6px;
+  }
+
+  .topbar {
+    padding: 10px 12px;
+    gap: 10px;
+  }
+
+  select {
+    font-size: 16px;
+    padding: 6px 36px 6px 8px;
+  }
+
+  #map {
+    min-height: 50vh;
+  }
+
   .leaflet-bottom.leaflet-left {
     margin-bottom: 90px;
   }
