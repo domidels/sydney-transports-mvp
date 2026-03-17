@@ -8,8 +8,9 @@
  * Data flow:
  *   API Gateway → Lambda (reads S3 latest.json) → this client
  *
- * The NSW GTFS-RT feed updates approximately every 10 seconds, so
- * REFRESH_MS is set to match that cadence.
+ * The NSW GTFS-RT feed updates approximately every 10 seconds. The client
+ * polls every 3 seconds to minimise the worst-case delay between a real
+ * position change and its appearance on the map.
  */
 document.addEventListener("DOMContentLoaded", () => {
 
@@ -24,8 +25,8 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * How long (ms) to animate a bus moving to its new GPS position.
-   * Set just under REFRESH_MS so the bus arrives right before the next update,
-   * giving the impression of continuous movement.
+   * Intentionally longer than REFRESH_MS (the NSW feed changes every ~10 s)
+   * so the movement looks smooth and continuous rather than abrupt.
    */
   const MOVE_DURATION = 5000;
 
@@ -148,7 +149,7 @@ document.addEventListener("DOMContentLoaded", () => {
   /**
    * Live bus registry.
    * Keys are vehicle IDs (strings); values are bus state objects:
-   *   { marker, last, angle, hasDirection, routeId, directionId, vehicleId, tripId,
+   *   { marker, last, angle, hasDirection, routeId, vehicleId, tripId,
    *     _cancelRotation, _cancelMove }
    */
   const buses = {};
@@ -327,7 +328,7 @@ document.addEventListener("DOMContentLoaded", () => {
    *   - When a bus is first added to the map.
    *   - When a bus's direction is first computed.
    *   - When the bus hasn't moved (to keep the colour in sync with the map).
-   *   - After the colour map is rebuilt (route set changed).
+   *   - When the route set changes (new routes appeared or disappeared).
    *   - After setIcon() on zoom (which resets the DOM element).
    *
    * @param {{ marker: L.Marker, routeId: string, angle: number }} bus
@@ -587,9 +588,8 @@ document.addEventListener("DOMContentLoaded", () => {
    * Fetch the latest bus snapshot from the API and update all markers.
    *
    * Strategy:
-   *  1. Pre-scan the vehicle list to collect route names and rebuild the
-   *     colour map *before* processing markers, so applyBusStyle() always
-   *     has correct colours on first paint.
+   *  1. Pre-scan the vehicle list to collect route names so the dropdown
+   *     and legend are always up to date before markers are processed.
    *  2. For each vehicle:
    *     - If new: create marker, add to map, apply style.
    *     - If known and moved: rotate to new bearing, then animate to new position.
@@ -606,7 +606,7 @@ document.addEventListener("DOMContentLoaded", () => {
       const seen = new Set();   // vehicle IDs present in this snapshot
       const routes = new Set(); // route short names present in this snapshot
 
-      // ── Pass 1: collect routes and rebuild colour map if needed ──────────
+      // ── Pass 1: collect routes so dropdown and legend are up to date ─────
       for (const v of data.vehicles || []) {
         if (!v.vehicle_id || v.lat == null || v.lon == null) continue;
         routes.add(String(v.route_id ?? "?").split("_")[1] ?? "?");
@@ -623,7 +623,7 @@ document.addEventListener("DOMContentLoaded", () => {
           String(a).localeCompare(String(b), undefined, { numeric: true })
         ));
         updateLegendVisibility();
-        // Re-apply colours to all existing buses — their indices may have shifted.
+        // Re-apply styles to existing buses in case their route changed.
         for (const bus of Object.values(buses)) applyBusStyle(bus);
       }
 
@@ -633,7 +633,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
         const id = v.vehicle_id;
         const route = String(v.route_id ?? "?").split("_")[1] ?? "?";
-        const directionId = Number(v.direction_id ?? 0);
         const pos = L.latLng(v.lat, v.lon);
 
         seen.add(id);
@@ -651,7 +650,6 @@ document.addEventListener("DOMContentLoaded", () => {
             angle: 0,           // current heading (degrees, 0 = north)
             hasDirection: false, // true once a bearing has been computed
             routeId: route,
-            directionId,
             vehicleId: v.vehicle_id,
             tripId: v.trip_id,
           };
@@ -669,7 +667,6 @@ document.addEventListener("DOMContentLoaded", () => {
           const old = bus.last;
 
           bus.routeId = route;
-          bus.directionId = directionId;
           bus.vehicleId = v.vehicle_id;
           bus.tripId = v.trip_id;
 
@@ -693,9 +690,7 @@ document.addEventListener("DOMContentLoaded", () => {
               bus.last = pos;
             } else {
               // Subsequent movements: rotate first, then move after rotation ends.
-              const stable = raw;
-
-              animateRotation(bus, stable);
+              animateRotation(bus, raw);
 
               // Delay the move so the bus is already pointing the right way.
               setTimeout(() => {
