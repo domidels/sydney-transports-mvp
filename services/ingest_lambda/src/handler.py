@@ -69,7 +69,7 @@ logger = get_logger(__name__, LOG_LEVEL)
 # ── Domain constants ──────────────────────────────────────────────────────────
 
 # Only these route short names are retained; all other buses are filtered out.
-TARGET_ROUTES = {"390X", "379", "370", "313", "373", "350", "333", "380", "726e", "360", "362"}
+TARGET_ROUTES = {"390X", "379", "370", "313", "373", "350", "333", "380", "381", "726e", "360", "362"}
 
 # S3 key for the rolling "latest" snapshot consumed by the read Lambda.
 LATEST_KEY = "latest/buses_latest.json"
