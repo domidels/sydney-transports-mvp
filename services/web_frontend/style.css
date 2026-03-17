@@ -19,6 +19,14 @@ body {
   flex: 0 0 auto;
 }
 
+.subtitle {
+  margin: 0;
+  padding: 0 24px 10px;
+  font-size: 20px;
+  color: #9ca3af;
+  flex: 0 0 auto;
+}
+
 h2 {
   margin: 20px;
   font-size: 40px;
@@ -28,7 +36,7 @@ select {
   padding: 10px 50px 10px 12px;
   border: 1px solid #e2ebf7;
   border-radius: 8px;
-  background-color: rgb(2, 107, 159);
+  background-color: rgb(167, 171, 172);
   font-size: 30px;
   color: white;
 
@@ -173,8 +181,8 @@ select option:checked {
 
 .loading-road {
   position: relative;
-  width: 260px;
-  height: 64px;
+  width: 400px;
+  height: 90px;
   background: #e5e7eb;
   border-radius: 8px;
   overflow: hidden;
@@ -196,8 +204,8 @@ select option:checked {
 
 .loading-bus {
   position: absolute;
-  width: 16px;
-  height: 42px;
+  width: 22px;
+  height: 58px;
   z-index: 2;
 }
 
@@ -223,16 +231,16 @@ select option:checked {
 
 @keyframes bus-drive-right {
   from { left: -30px; }
-  to   { left: 275px; }
+  to   { left: 415px; }
 }
 
 @keyframes bus-drive-left {
-  from { left: 275px; }
+  from { left: 415px; }
   to   { left: -30px; }
 }
 
 .loading-text-wrap {
-  width: 260px;
+  width: 400px;
   overflow: hidden;
   background: rgba(255, 255, 255, 0.92);
   border-radius: 8px;
@@ -244,13 +252,14 @@ select option:checked {
   margin: 0;
   display: inline-block;
   white-space: nowrap;
-  padding: 0 260px 0 0;
-  animation: text-scroll 8s linear infinite;
+  padding: 0;
+  font-size: 13px;
+  animation: text-scroll 18s linear infinite;
 }
 
 @keyframes text-scroll {
-  from { transform: translateX(260px); }
-  to   { transform: translateX(-100%); }
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
 }
 
 /* ---------- LEGEND ---------- */
@@ -263,8 +272,8 @@ select option:checked {
   font-size: 14px;
   line-height: 1.4;
   min-width: 110px;
-  max-height: 220px;
-  overflow-y: auto;
+  max-height: none;
+  overflow-y: visible;
 }
 
 @media (max-width: 340px) {
@@ -283,8 +292,8 @@ select option:checked {
     to   { left: -30px; }
   }
   @keyframes text-scroll {
-    from { transform: translateX(200px); }
-    to   { transform: translateX(-100%); }
+    from { transform: translateX(0); }
+    to   { transform: translateX(-50%); }
   }
 }
 

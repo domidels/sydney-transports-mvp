@@ -81,7 +81,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // Fallback view in case the ResizeObserver below fires very late.
-  map.setView([-33.912, 151.240], 14);
+  map.setView([-33.900, 151.253], 15);
 
   // Chrome (HTTP/2 + HTTPS) can fire DOMContentLoaded before the flex
   // layout has calculated #map's height, so Leaflet initialises with a
@@ -94,7 +94,7 @@ document.addEventListener("DOMContentLoaded", () => {
     if (mapEl.offsetHeight > 0) {
       ro.disconnect();                            // one-shot, only initial sizing
       map.invalidateSize({ reset: true });
-      map.setView([-33.912, 151.240], 14, { animate: false });
+      map.setView([-33.900, 151.253], 15, { animate: false });
     }
   });
   ro.observe(mapEl);
