@@ -91,18 +91,24 @@ select option:checked {
   width: 100%;
   height: 100%;
   overflow: visible;
+  /* Dark halo so the icon reads clearly on any map background, plus a
+     stronger drop shadow for depth. */
+  filter:
+    drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.85))
+    drop-shadow(0 0 1.5px rgba(0, 0, 0, 0.85))
+    drop-shadow(0 3px 5px rgba(0, 0, 0, 0.45));
 }
 
 /* bus body */
 
 .bus-shadow {
-  fill: rgba(0, 0, 0, 0.18);
+  fill: rgba(0, 0, 0, 0.28);
 }
 
 .bus-body {
   fill: var(--bus-color, #2563eb);
   stroke: #ffffff;
-  stroke-width: 8;
+  stroke-width: 10;
 }
 
 /* windows */
