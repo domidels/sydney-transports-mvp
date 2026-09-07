@@ -23,10 +23,9 @@ document.addEventListener("DOMContentLoaded", () => {
    * automatically if the page is left open across the boundary.
    */
   (function setupNightAlert() {
-    // TEMPORARY: forces the banner to show regardless of the hour, for
-    // visual verification. Set back to false to restore the 22:00–06:00
-    // Australia/Sydney-only behaviour.
-    const FORCE_ALWAYS_SHOW = true;
+    // Set to true to force the banner to show regardless of the hour, for
+    // visual verification.
+    const FORCE_ALWAYS_SHOW = false;
 
     const banner = document.getElementById("night-alert");
     const closeBtn = document.getElementById("night-alert-close");
