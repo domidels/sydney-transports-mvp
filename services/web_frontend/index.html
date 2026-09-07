@@ -23,6 +23,16 @@
 
   <p class="subtitle">Live NSW bus feed &nbsp;·&nbsp; Positions may be up to ~20 s behind due to the NSW Transport feed update frequency</p>
 
+  <div id="night-alert" class="night-alert" hidden>
+    <div class="night-alert-content">
+      <span class="night-alert-icon">🌙</span>
+      <span class="night-alert-text">
+        It's currently night-time in Sydney, Australia. Bus services are running at reduced frequency, so live positions may update more slowly than usual.
+      </span>
+      <button id="night-alert-close" class="night-alert-close" aria-label="Close">&times;</button>
+    </div>
+  </div>
+
   <div id="map"></div>
   <div id="loading-overlay">
     <div class="loader-box">

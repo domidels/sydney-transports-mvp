@@ -262,6 +262,62 @@ select option:checked {
   to   { transform: translateX(-50%); }
 }
 
+/* ---------- NIGHT ALERT ---------- */
+
+.night-alert {
+  flex: 0 0 auto;
+  background: #1e293b;
+  color: #f1f5f9;
+  padding: 10px 24px;
+}
+
+.night-alert[hidden] {
+  display: none;
+}
+
+.night-alert-content {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  max-width: 900px;
+}
+
+.night-alert-icon {
+  font-size: 18px;
+  flex: 0 0 auto;
+}
+
+.night-alert-text {
+  font-size: 14px;
+  line-height: 1.4;
+  flex: 1 1 auto;
+}
+
+.night-alert-close {
+  flex: 0 0 auto;
+  background: none;
+  border: none;
+  color: #f1f5f9;
+  font-size: 20px;
+  line-height: 1;
+  cursor: pointer;
+  padding: 0 4px;
+}
+
+.night-alert-close:hover {
+  color: #cbd5e1;
+}
+
+@media (max-width: 600px) {
+  .night-alert {
+    padding: 8px 12px;
+  }
+
+  .night-alert-text {
+    font-size: 11px;
+  }
+}
+
 /* ---------- LEGEND ---------- */
 
 .bus-legend {

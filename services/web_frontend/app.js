@@ -14,6 +14,57 @@
  */
 document.addEventListener("DOMContentLoaded", () => {
 
+  // ─── Night-time alert (Sydney local time) ─────────────────────────────────
+
+  /**
+   * Show a banner warning European visitors that it's currently night-time
+   * in Sydney (22:00–06:00 Australia/Sydney) and that bus frequency is
+   * reduced. Re-checked every minute so the banner appears/disappears
+   * automatically if the page is left open across the boundary.
+   */
+  (function setupNightAlert() {
+    // TEMPORARY: forces the banner to show regardless of the hour, for
+    // visual verification. Set back to false to restore the 22:00–06:00
+    // Australia/Sydney-only behaviour.
+    const FORCE_ALWAYS_SHOW = true;
+
+    const banner = document.getElementById("night-alert");
+    const closeBtn = document.getElementById("night-alert-close");
+    if (!banner || !closeBtn) return;
+
+    let dismissed = false;
+    closeBtn.addEventListener("click", () => {
+      dismissed = true;
+      banner.hidden = true;
+    });
+
+    function getSydneyHour() {
+      const hourStr = new Intl.DateTimeFormat("en-AU", {
+        timeZone: "Australia/Sydney",
+        hour: "numeric",
+        hour12: false,
+      }).format(new Date());
+      // "24" is returned for midnight by some environments — normalise to 0.
+      return Number(hourStr) % 24;
+    }
+
+    function refreshNightAlert() {
+      const hour = getSydneyHour();
+      const isNight = FORCE_ALWAYS_SHOW || hour >= 22 || hour < 6;
+
+      if (!isNight) {
+        dismissed = false;
+        banner.hidden = true;
+        return;
+      }
+
+      if (!dismissed) banner.hidden = false;
+    }
+
+    refreshNightAlert();
+    setInterval(refreshNightAlert, 60 * 1000);
+  })();
+
   // ─── Configuration ────────────────────────────────────────────────────────
 
   /** REST endpoint returning the latest bus snapshot (JSON). */
