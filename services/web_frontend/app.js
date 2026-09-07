@@ -14,6 +14,28 @@
  */
 document.addEventListener("DOMContentLoaded", () => {
 
+  // ─── Sydney clock ──────────────────────────────────────────────────────────
+
+  /** Keep the top-right Sydney clock in sync with the real time. */
+  (function setupSydneyClock() {
+    const timeEl = document.getElementById("sydney-clock-time");
+    if (!timeEl) return;
+
+    const formatter = new Intl.DateTimeFormat("en-AU", {
+      timeZone: "Australia/Sydney",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: false,
+    });
+
+    function refreshClock() {
+      timeEl.textContent = formatter.format(new Date());
+    }
+
+    refreshClock();
+    setInterval(refreshClock, 1000);
+  })();
+
   // ─── Night-time alert (Sydney local time) ─────────────────────────────────
 
   /**

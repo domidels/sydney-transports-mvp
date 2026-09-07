@@ -13,10 +13,42 @@ body {
 .topbar {
   display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 24px;
   padding: 20px 24px;
   flex-wrap: wrap;
   flex: 0 0 auto;
+}
+
+.topbar-controls {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  flex-wrap: wrap;
+}
+
+.sydney-clock {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 14px;
+  border: 1px solid #e2ebf7;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  color: #374151;
+  font-size: 18px;
+  white-space: nowrap;
+}
+
+.sydney-clock-icon {
+  font-size: 16px;
+}
+
+.sydney-clock-label {
+  font-size: 12px;
+  color: #9ca3af;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
 }
 
 .subtitle {
@@ -383,6 +415,19 @@ select option:checked {
   select {
     font-size: 16px;
     padding: 6px 36px 6px 8px;
+  }
+
+  .topbar-controls {
+    gap: 8px;
+  }
+
+  .sydney-clock {
+    padding: 5px 8px;
+    font-size: 13px;
+  }
+
+  .sydney-clock-label {
+    display: none;
   }
 
   #map {

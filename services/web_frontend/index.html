@@ -16,9 +16,17 @@
   <div class="topbar">
     <h2>Waverley Buses Live — Beta · More routes coming soon</h2>
 
-    <select id="route-select">
-      <option value="all">Select a route</option>
-    </select>
+    <div class="topbar-controls">
+      <div id="sydney-clock" class="sydney-clock" title="Current time in Sydney, Australia">
+        <span class="sydney-clock-icon">🕒</span>
+        <span id="sydney-clock-time">--:--</span>
+        <span class="sydney-clock-label">Sydney</span>
+      </div>
+
+      <select id="route-select">
+        <option value="all">Select a route</option>
+      </select>
+    </div>
   </div>
 
   <p class="subtitle">Live NSW bus feed &nbsp;·&nbsp; Positions may be up to ~20 s behind due to the NSW Transport feed update frequency</p>
@@ -27,7 +35,7 @@
     <div class="night-alert-content">
       <span class="night-alert-icon">🌙</span>
       <span class="night-alert-text">
-        It's currently night-time in Sydney, Australia. Bus services are running at reduced frequency, so live positions may update more slowly than usual.
+        It's currently night-time in Sydney, Australia. Bus services are running at reduced frequency.
       </span>
       <button id="night-alert-close" class="night-alert-close" aria-label="Close">&times;</button>
     </div>
