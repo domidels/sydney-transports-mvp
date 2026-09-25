@@ -141,14 +141,15 @@ resource "aws_apigatewayv2_integration" "read_lambda" {
 # ─── Lambda — ingest ─────────────────────────────────────────────────────────
 
 # Polls the NSW GTFS-RT feed and writes the filtered snapshot to S3.
-# Timeout is 30 s per the poll window (55 s) — Lambda hard limit is 15 min,
-# but the EventBridge schedule fires every minute so 30 s is a safe ceiling.
+# Timeout is 60 s to let the poll window (55 s, poll_window_seconds) finish
+# cleanly — the loop itself ends before the next EventBridge trigger, so
+# there's no risk of overlapping invocations.
 resource "aws_lambda_function" "ingest" {
   function_name = "${local.prefix}-ingest"
   role          = aws_iam_role.lambda_exec.arn
   handler       = "handler.lambda_handler"
   runtime       = "python3.11"
-  timeout       = 30
+  timeout       = 60
 
   filename         = "${path.module}/../../../../dist/lambda_ingest.zip"
   source_code_hash = filebase64sha256("${path.module}/../../../../dist/lambda_ingest.zip")
