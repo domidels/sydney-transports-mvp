@@ -325,6 +325,38 @@ select option:checked {
   }
 }
 
+/* ---------- CONTACT ---------- */
+
+.contact-badge a {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(15, 23, 42, 0.92);
+  color: #e2e8f0;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 8px 12px;
+  border-radius: 8px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+  font-size: 13px;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.contact-badge a:hover {
+  background: rgba(30, 41, 59, 0.96);
+}
+
+.contact-icon {
+  font-size: 13px;
+}
+
+@media (max-width: 600px) {
+  .contact-badge a {
+    padding: 6px 9px;
+    font-size: 11px;
+  }
+}
+
 /* ---------- LEGEND ---------- */
 
 .bus-legend {

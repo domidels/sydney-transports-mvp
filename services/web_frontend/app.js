@@ -179,6 +179,32 @@ document.addEventListener("DOMContentLoaded", () => {
     attribution: "OpenStreetMap",
   }).addTo(map);
 
+  // ─── Contact ──────────────────────────────────────────────────────────────
+
+  /**
+   * Contact link, bottom-right (stacks above the Leaflet attribution).
+   * The address is assembled here rather than written in the HTML so
+   * simple scrapers that only read the static markup can't harvest it.
+   */
+  const contact = L.control({ position: "bottomright" });
+
+  contact.onAdd = function () {
+    const div = L.DomUtil.create("div", "contact-badge");
+    L.DomEvent.disableClickPropagation(div);
+
+    const user = "domidels";
+    const domain = ["gmail", "com"].join(".");
+    const link = document.createElement("a");
+    link.href = `mailto:${user}@${domain}`;
+    link.title = "Contact";
+    link.innerHTML = `<span class="contact-icon">✉️</span> Contact`;
+
+    div.appendChild(link);
+    return div;
+  };
+
+  contact.addTo(map);
+
   // ─── Legend ───────────────────────────────────────────────────────────────
 
   /** Leaflet control that renders the route colour legend (bottom-left). */
