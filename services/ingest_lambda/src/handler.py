@@ -28,6 +28,7 @@ Environment variables (injected by Terraform)
   POLL_WINDOW_SECONDS    – Total seconds to keep polling per invocation (default: 55).
 """
 
+import hashlib
 import json
 import os
 import time
@@ -73,6 +74,11 @@ TARGET_ROUTES = {"390X", "379", "370", "313", "373", "350", "333", "380", "381",
 
 # S3 key for the rolling "latest" snapshot consumed by the read Lambda.
 LATEST_KEY = "latest/buses_latest.json"
+
+# Hash of the last vehicle list written to S3. Module-level so it also
+# carries over between invocations on a warm Lambda container, cutting
+# redundant writes further than the within-invocation dedup alone.
+_last_written_hash: str | None = None
 
 
 # ── Helpers ───────────────────────────────────────────────────────────────────
@@ -133,12 +139,14 @@ def fetch_filtered_records() -> list[dict]:
 
     Raises:
         requests.HTTPError: If the API returns a non-2xx status.
-        requests.Timeout:   If the request exceeds 30 seconds.
+        requests.Timeout:   If the request exceeds 8 seconds. Kept short so a
+            slow call late in the poll window can't push the Lambda past its
+            60 s timeout (see POLL_WINDOW_SECONDS).
     """
     response = requests.get(
         TFNSW_VEHICLEPOS_URL,
         headers={"Authorization": f"apikey {TFNSW_API_KEY}"},
-        timeout=30,
+        timeout=8,
     )
     response.raise_for_status()
 
@@ -167,9 +175,13 @@ def fetch_filtered_records() -> list[dict]:
     return filtered_records
 
 
-def write_latest_payload(payload: dict) -> None:
+def write_latest_payload(payload: dict) -> bool:
     """
-    Serialise the payload to JSON and write it to S3 at LATEST_KEY.
+    Serialise the payload to JSON and write it to S3 at LATEST_KEY, unless
+    the vehicle data is identical to the last write (compared by hash), in
+    which case the write is skipped — the NSW feed only changes roughly
+    every ~10 s, so about half of our ~5 s polls would otherwise write an
+    unchanged snapshot.
 
     The object is written with ``Cache-Control: no-store`` so that the
     API Gateway / CloudFront layer never serves a stale copy.
@@ -179,11 +191,26 @@ def write_latest_payload(payload: dict) -> None:
 
     Args:
         payload: Dict produced by build_latest_payload().
+
+    Returns:
+        True if the object was written to S3, False if the write was
+        skipped because the vehicle data hadn't changed.
     """
+    global _last_written_hash
+
+    records_hash = hashlib.sha256(
+        json.dumps(payload["vehicles"], sort_keys=True).encode("utf-8")
+    ).hexdigest()
+
+    if records_hash == _last_written_hash:
+        logger.info("Vehicle data unchanged since last write, skipping S3 put")
+        return False
+
     if not RAW_BUCKET_NAME:
         logger.info("RAW_BUCKET_NAME not set, skipping S3 write for local test")
         logger.info("Latest payload preview: %s", payload)
-        return
+        _last_written_hash = records_hash
+        return True
 
     s3 = boto3.client("s3")
     s3.put_object(
@@ -194,7 +221,9 @@ def write_latest_payload(payload: dict) -> None:
         CacheControl="no-store",
     )
 
+    _last_written_hash = records_hash
     logger.info("Wrote latest snapshot to s3://%s/%s", RAW_BUCKET_NAME, LATEST_KEY)
+    return True
 
 
 # ── Lambda entry point ────────────────────────────────────────────────────────
@@ -218,6 +247,9 @@ def lambda_handler(event, context):
         Dict with:
             statusCode                   – 200 on success.
             iterations                   – Number of feed fetches performed.
+            writes                       – Number of fetches that actually
+                                            wrote to S3 (others were skipped
+                                            as unchanged).
             records_written_last_snapshot – Vehicle count in the final write.
             routes                       – Sorted list of monitored routes.
             s3_key                       – S3 key of the written object.
@@ -233,12 +265,14 @@ def lambda_handler(event, context):
 
     started_at = time.time()
     iterations = 0
+    writes = 0
     last_count = 0
 
     while time.time() - started_at < POLL_WINDOW_SECONDS:
         filtered_records = fetch_filtered_records()
         payload = build_latest_payload(filtered_records)
-        write_latest_payload(payload)
+        if write_latest_payload(payload):
+            writes += 1
 
         iterations += 1
         last_count = len(filtered_records)
@@ -255,6 +289,7 @@ def lambda_handler(event, context):
     return {
         "statusCode": 200,
         "iterations": iterations,
+        "writes": writes,
         "records_written_last_snapshot": last_count,
         "routes": sorted(TARGET_ROUTES),
         "s3_key": LATEST_KEY,

@@ -149,8 +149,13 @@ resource "aws_lambda_function" "ingest" {
   role          = aws_iam_role.lambda_exec.arn
   handler       = "handler.lambda_handler"
   runtime       = "python3.11"
+  architectures = ["arm64"] # ~20% cheaper than x86_64; the workload is network-bound, not CPU-bound
   timeout       = 60
 
+  # IMPORTANT: this zip must be built for arm64 (see rebuild_lambda_zip.sh,
+  # which pins pip to manylinux2014_aarch64 wheels) — a zip built with
+  # plain `pip install` on an x86_64 machine will contain incompatible
+  # compiled dependencies (protobuf's C extension) and crash at runtime.
   filename         = "${path.module}/../../../../dist/lambda_ingest.zip"
   source_code_hash = filebase64sha256("${path.module}/../../../../dist/lambda_ingest.zip")
 

@@ -92,13 +92,18 @@ document.addEventListener("DOMContentLoaded", () => {
   const API_URL =
     "https://px97vg8cc5.execute-api.ap-southeast-2.amazonaws.com/buses/latest";
 
-  /** How often (ms) to poll the API. */
-  const REFRESH_MS = 3000;
+  /**
+   * How often (ms) to poll the API. The NSW feed itself only changes about
+   * every 10 s, and the ingest Lambda writes at most every ~5 s, so
+   * polling faster than that mostly re-fetches identical data.
+   */
+  const REFRESH_MS = 5000;
 
   /**
    * How long (ms) to animate a bus moving to its new GPS position.
-   * Intentionally longer than REFRESH_MS (the NSW feed changes every ~10 s)
-   * so the movement looks smooth and continuous rather than abrupt.
+   * Matches REFRESH_MS so one movement animation finishes right as the
+   * next position arrives, keeping the motion continuous rather than
+   * abrupt.
    */
   const MOVE_DURATION = 5000;
 
@@ -865,7 +870,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // ─── Bootstrap ────────────────────────────────────────────────────────────
 
-  // Fetch immediately on load, then repeat every REFRESH_MS.
+  /**
+   * Polling is paused while the tab is hidden (backgrounded or minimised)
+   * to avoid running up API calls for a page nobody is looking at — this
+   * is the single biggest lever on request volume, since a tab left open
+   * for hours would otherwise keep polling the whole time.
+   */
+  let pollTimer = null;
+
+  function startPolling() {
+    if (pollTimer) return;
+    pollTimer = setInterval(updateBuses, REFRESH_MS);
+  }
+
+  function stopPolling() {
+    if (!pollTimer) return;
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) {
+      stopPolling();
+    } else {
+      updateBuses(); // catch up immediately on return
+      startPolling();
+    }
+  });
+
+  // Fetch immediately on load, then repeat every REFRESH_MS while visible.
   updateBuses();
-  setInterval(updateBuses, REFRESH_MS);
+  if (!document.hidden) startPolling();
 });
