@@ -9,7 +9,7 @@ Live at **[waverley-bus.live](https://waverley-bus.live)**
 ## What it does
 
 - Ingests the **NSW Transport GTFS-RT feed** every ~5 seconds (the feed itself refreshes roughly every 10 s), only writing a new snapshot to S3 when the data actually changes
-- The browser polls for updates every 3 seconds and **smoothly animates** each bus to its new GPS position over that same 3 s window, so motion stays continuous instead of snapping
+- The browser polls for updates every 3 seconds and **smoothly animates** each bus to its new GPS position, timing the glide to match the vehicle's real GPS fix interval (from its own GTFS-RT timestamp) rather than the poll rate, so motion stays continuous instead of a quick snap followed by a stall
 - Each bus rotates to face its **direction of travel** before moving
 - Buses are **colour-coded by route** with a legend
 - Filter by route using the dropdown
