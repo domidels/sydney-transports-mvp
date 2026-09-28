@@ -8,13 +8,14 @@ Live at **[waverley-bus.live](https://waverley-bus.live)**
 
 ## What it does
 
-- Fetches live bus positions from the **NSW Transport GTFS-RT feed** every 10 seconds
-- Displays buses on an interactive map with **smooth animation** between GPS updates
+- Ingests the **NSW Transport GTFS-RT feed** every ~5 seconds (the feed itself refreshes roughly every 10 s), only writing a new snapshot to S3 when the data actually changes
+- The browser polls for updates every 3 seconds and **smoothly animates** each bus to its new GPS position over that same 3 s window, so motion stays continuous instead of snapping
 - Each bus rotates to face its **direction of travel** before moving
 - Buses are **colour-coded by route** with a legend
 - Filter by route using the dropdown
+- Shows the current time in Sydney, with a night-time notice (22:00–06:00 Sydney time) warning that bus frequency is reduced
 
-Monitored routes: `313` `333` `350` `370` `373` `379` `390X`
+Monitored routes: `313` `333` `350` `360` `362` `370` `373` `379` `380` `381` `390X` `726e`
 
 ---
 
@@ -26,8 +27,8 @@ NSW GTFS-RT feed (every ~10 s)
         ▼
 ┌───────────────────┐
 │  Ingest Lambda    │  triggered every minute by EventBridge Scheduler
-│  polls feed every │  runs an internal loop for 55 s, writing to S3
-│  5 s              │  each time new data arrives
+│  (arm64)          │  runs an internal loop for ~55 s, polling every 5 s,
+│                   │  writing to S3 only when the data has changed
 └────────┬──────────┘
          │ writes latest/buses_latest.json
          ▼
@@ -116,22 +117,31 @@ pytest tests/
 
 ## Deployment
 
-Infrastructure is managed with Terraform. Deployment is triggered manually via GitHub Actions.
+**Frontend** deploys automatically: any push to `main` touching `services/web_frontend/` triggers the `deploy-frontend` GitHub Action, which syncs the files to S3 and invalidates the CloudFront cache. No manual step needed.
 
-**Required GitHub secrets:**
+**Infrastructure** (Terraform, Lambdas) is applied manually, either locally or by running the `deploy-dev` GitHub Action (`workflow_dispatch`).
 
-| Secret | Description |
-|--------|-------------|
-| `AWS_ACCESS_KEY_ID` | AWS credentials |
-| `AWS_SECRET_ACCESS_KEY` | AWS credentials |
-| `TFNSW_API_KEY` | NSW Transport Open Data API key |
+The ingest Lambda runs on **arm64**, so its zip must be built targeting that architecture — `rebuild_lambda_zip.sh` pins `pip` to `manylinux2014_aarch64` wheels regardless of the machine it's run on. Always rebuild the zip before applying if `services/ingest_lambda/` changed:
 
 ```bash
-# First-time setup
+# Package the ingest Lambda (arm64)
+bash rebuild_lambda_zip.sh
+
+# Apply infrastructure
 cd infra/terraform/environments/dev
 terraform init
 terraform apply
 ```
+
+**Required GitHub secrets:**
+
+| Secret | Used by | Description |
+|--------|---------|-------------|
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` | `deploy-dev` | AWS credentials for Terraform |
+| `TFNSW_API_KEY` | `deploy-dev` | NSW Transport Open Data API key |
+| `AWS_ROLE_ARN` | `deploy-frontend` | IAM role assumed via OIDC |
+| `S3_BUCKET` | `deploy-frontend` | Frontend S3 bucket name |
+| `CLOUDFRONT_DISTRIBUTION_ID` | `deploy-frontend` | CDN cache invalidation |
 
 ---
 
