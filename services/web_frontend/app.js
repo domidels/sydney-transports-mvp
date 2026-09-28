@@ -93,11 +93,12 @@ document.addEventListener("DOMContentLoaded", () => {
     "https://px97vg8cc5.execute-api.ap-southeast-2.amazonaws.com/buses/latest";
 
   /**
-   * How often (ms) to poll the API. The NSW feed itself only changes about
-   * every 10 s, and the ingest Lambda writes at most every ~5 s, so
-   * polling faster than that mostly re-fetches identical data.
+   * How often (ms) to poll the API. The ingest Lambda writes at most every
+   * ~5 s (and only when the data actually changed), so this doesn't fetch
+   * fresher data than that — but it does cut the worst-case delay before
+   * the browser picks up a write that already happened.
    */
-  const REFRESH_MS = 5000;
+  const REFRESH_MS = 3000;
 
   /**
    * How long (ms) to animate a bus moving to its new GPS position.
@@ -105,7 +106,7 @@ document.addEventListener("DOMContentLoaded", () => {
    * next position arrives, keeping the motion continuous rather than
    * abrupt.
    */
-  const MOVE_DURATION = 5000;
+  const MOVE_DURATION = 3000;
 
   /** How long (ms) to animate a bus rotating to its new bearing before moving. */
   const ROTATE_DURATION = 300;
