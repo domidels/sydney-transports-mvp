@@ -101,12 +101,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const REFRESH_MS = 3000;
 
   /**
-   * How long (ms) to animate a bus moving to its new GPS position.
-   * Matches REFRESH_MS so one movement animation finishes right as the
-   * next position arrives, keeping the motion continuous rather than
-   * abrupt.
+   * Fallback animation duration (ms) used when a bus's real GPS fix
+   * interval can't be determined (e.g. its first tracked movement).
+   * Normal moves are timed from the vehicle's own GTFS-RT timestamp
+   * instead — see MIN/MAX_MOVE_DURATION below — because the real interval
+   * between two GPS fixes (~5-10 s+, set by NSW's feed) is usually longer
+   * than REFRESH_MS: animating over REFRESH_MS would glide quickly and
+   * then sit frozen until the next real fix, which reads as jerky.
+   * Animating over the real fix interval instead keeps the bus moving
+   * continuously for as long as it actually took to travel that distance.
    */
   const MOVE_DURATION = 3000;
+
+  /** Clamp bounds (ms) for the fix-interval-based animation duration. */
+  const MIN_MOVE_DURATION = 1000;
+  const MAX_MOVE_DURATION = 20000;
 
   /** How long (ms) to animate a bus rotating to its new bearing before moving. */
   const ROTATE_DURATION = 300;
@@ -254,8 +263,8 @@ document.addEventListener("DOMContentLoaded", () => {
   /**
    * Live bus registry.
    * Keys are vehicle IDs (strings); values are bus state objects:
-   *   { marker, last, angle, hasDirection, routeId, vehicleId, tripId,
-   *     _cancelRotation, _cancelMove }
+   *   { marker, last, angle, hasDirection, fixTimestamp, routeId,
+   *     vehicleId, tripId, _cancelRotation, _cancelMove }
    */
   const buses = {};
 
@@ -565,7 +574,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   /**
    * Animate a bus marker sliding from its current visual position to a new GPS position
-   * over MOVE_DURATION ms.
+   * over the given duration.
    *
    * Cancels any in-progress move for this bus before starting.
    * The start position is taken from the marker's current screen position (not the
@@ -574,8 +583,9 @@ document.addEventListener("DOMContentLoaded", () => {
    *
    * @param {{ marker: L.Marker, _cancelMove: Function|null }} bus
    * @param {L.LatLng} to - Destination GPS coordinate.
+   * @param {number} [duration] - Animation duration in ms (default MOVE_DURATION).
    */
-  function animateMove(bus, to) {
+  function animateMove(bus, to, duration = MOVE_DURATION) {
     // Cancel any previous move that may still be running.
     if (bus._cancelMove) bus._cancelMove();
 
@@ -589,7 +599,7 @@ document.addEventListener("DOMContentLoaded", () => {
     function step(now) {
       if (cancelled) return;
 
-      const t = Math.min((now - start) / MOVE_DURATION, 1);
+      const t = Math.min((now - start) / duration, 1);
       bus.marker.setLatLng([
         from.lat + (to.lat - from.lat) * t,
         from.lng + (to.lng - from.lng) * t,
@@ -754,6 +764,7 @@ document.addEventListener("DOMContentLoaded", () => {
             last: pos,          // last reported GPS position
             angle: 0,           // current heading (degrees, 0 = north)
             hasDirection: false, // true once a bearing has been computed
+            fixTimestamp: v.timestamp, // GTFS-RT timestamp (s) of `last`
             routeId: route,
             vehicleId: v.vehicle_id,
             tripId: v.trip_id,
@@ -793,16 +804,32 @@ document.addEventListener("DOMContentLoaded", () => {
               applyBusStyle(bus);
               bus.marker.setLatLng(pos);
               bus.last = pos;
+              bus.fixTimestamp = v.timestamp;
             } else {
               // Subsequent movements: rotate first, then move after rotation ends.
               animateRotation(bus, raw);
 
+              // Time the glide to match how long this move actually took in
+              // the real world (per the vehicle's own GTFS-RT timestamp),
+              // not our poll interval — so the bus keeps moving for as long
+              // as it really did, instead of a quick glide followed by a
+              // stall until the next real fix.
+              const elapsedSeconds = v.timestamp - bus.fixTimestamp;
+              const duration =
+                Number.isFinite(elapsedSeconds) && elapsedSeconds > 0
+                  ? Math.min(
+                      Math.max(elapsedSeconds * 1000, MIN_MOVE_DURATION),
+                      MAX_MOVE_DURATION
+                    )
+                  : MOVE_DURATION;
+
               // Delay the move so the bus is already pointing the right way.
               setTimeout(() => {
-                animateMove(bus, pos);
+                animateMove(bus, pos, duration);
               }, ROTATE_DURATION);
 
               bus.last = pos;
+              bus.fixTimestamp = v.timestamp;
             }
           } else {
             // Bus hasn't moved — refresh style to keep colour in sync.
